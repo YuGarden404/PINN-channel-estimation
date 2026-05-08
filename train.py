@@ -18,7 +18,7 @@ def main_train(config, continue_= None):
     
     # Create datasets
     train_dataset, val_dataset, test_dataset = create_datasets(config['smomp_file'], config['accurate_file'], 
-        config['user_positions_file'], rss_processor)
+        config['user_positions_file'], rss_processor,rss_mode=config.get('rss_mode', 'normal'))
     
     train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], 
                              shuffle=True)
@@ -39,7 +39,11 @@ def main_train(config, continue_= None):
         lr=config['learning_rate'],
         device=config['device'], 
         model_name_val = config['name_val'],
-        model_name_train = config['name_train'], continue_ = continue_
+        model_name_train = config['name_train'], continue_ = continue_,
+        alpha = config.get('alpha', 0.01),
+        save_train_checkpoint = config.get('save_train_checkpoint', False),
+        save_frequency = config.get('save_frequency', 0),
+        save_half_precision = config.get('save_half_precision', False)
         )
     
     # Load best model and evaluate on test set
@@ -50,13 +54,16 @@ def main_train(config, continue_= None):
     print(f"\nFinal Test NMSE: {test_nmse:.6f}")
     print(f"Test NMSE in dB: {10 * np.log10(test_nmse):.2f} dB")
 
-    print("\nEvaluating on test set on best train...")
-    checkpoint = torch.load(config['name_train'])
-    model.load_state_dict(checkpoint['model_state_dict'])
-    test_nmse = evaluate_test_set(model, test_loader, device=config['device'])
-    
-    print(f"\nFinal Test NMSE: {test_nmse:.6f}")
-    print(f"Test NMSE in dB: {10 * np.log10(test_nmse):.2f} dB")
+    if config.get('evaluate_train_checkpoint', False) and os.path.exists(config['name_train']):
+        print("\nEvaluating on test set on best train...")
+        checkpoint = torch.load(config['name_train'])
+        model.load_state_dict(checkpoint['model_state_dict'])
+        test_nmse = evaluate_test_set(model, test_loader, device=config['device'])
+        
+        print(f"\nFinal Test NMSE: {test_nmse:.6f}")
+        print(f"Test NMSE in dB: {10 * np.log10(test_nmse):.2f} dB")
+    else:
+        print("\nSkipping best train checkpoint evaluation.")
     
     # Plot training curves
     # plt.figure(figsize=(10, 5))
@@ -83,18 +90,23 @@ def main_train(config, continue_= None):
 if __name__ == "__main__":
     # Configuration
     config = {
-        'smomp_file': 'initial_estimate_ls_snr0.npy',
-        'accurate_file': '3D_channel_15GHz_2x2_Pt50.npy',
-        'user_positions_file': 'ue_positions_noisy.txt',
+        # 'smomp_file': 'initial_estimate_ls_snr0.npy',
+        # 'accurate_file': '3D_channel_15GHz_2x2_Pt50.npy',
+        # 'user_positions_file': 'ue_positions_noisy.txt',
+        'smomp_file': 'initial_estimate_ls_snr0_1000.npy',
+        'accurate_file': '3D_channel_15GHz_2x2_Pt50_1000.npy',
+        'user_positions_file': 'ue_positions_noisy_1000.txt',
         'rss_image_path': 'Dataset/50_15GHz.jpg',
         'bs_pixel_coords': (287, 293),
         'bs_real_coords': (71.06, 246.29),
         'image_width_meters': 527.5,
         'batch_size': 32,
-        'epochs': 500,
+        'epochs': 100,
         'learning_rate': 1e-3,
-        'device': 'cuda',
-        'name_val':'simple_ls_0_val.pth',
-        'name_train':'simple_ls_0_train.pth'
+        'device': 'cuda' if torch.cuda.is_available() else 'cpu',
+        'rss_mode': 'zero',
+        'alpha': 0.01,
+        'name_val':'simple_ls_0_val_constantrss.pth',
+        'name_train':'simple_ls_0_train_constantrss.pth'
     }
     model = main_train(config)

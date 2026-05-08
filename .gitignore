@@ -3,13 +3,27 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+.venv_cuda/
 venv/
 
 # Generated artifacts from the regeneration pipeline
 *.npy
 *.pth
+*.pt
+*.ckpt
 
+log/*.txt
+log/run_*.log
+checkpoints*/
+
+*.out.log
+*.err.log
 # Editor / OS
 .idea/
 .vscode/
 .DS_Store
+log/*.txt
+log/*.out.log
+log/*.err.log
+
+Dataset/*.csv

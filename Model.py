@@ -585,13 +585,14 @@ def load_checkpoint(model, optimizer, scheduler, checkpoint_path='checkpoint.pth
 
 
 def train_model(model, train_loader, val_loader, epochs=100, lr=1e-3, device='cuda',
-                model_name_val = 'best_model.pth', model_name_train = 'last_model.pth', continue_=None):
+                model_name_val = 'best_model.pth', model_name_train = 'last_model.pth',
+                continue_=None, alpha=0.01, save_train_checkpoint=False, save_frequency=0,
+                save_half_precision=False):
     """Training loop"""
-    save_frequency = 20
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.65)
-    criterion = PhysicsInformedLoss(alpha=0.01)
+    criterion = PhysicsInformedLoss(alpha=alpha)
     
     train_losses = []
     val_losses = []
@@ -662,13 +663,19 @@ def train_model(model, train_loader, val_loader, epochs=100, lr=1e-3, device='cu
               f'Val Loss={avg_val_loss:.4f}, Val NMSE={avg_val_nmse:.4f}')
 
         # Save checkpoint periodically
-        if (epoch + 1) % save_frequency == 0:
+        if save_train_checkpoint and save_frequency and (epoch + 1) % save_frequency == 0:
             save_checkpoint(model, optimizer, scheduler, epoch, train_losses, 
                           val_losses, best_val_nmse, model_name_train)
         # Save best model
         if avg_val_nmse < best_val_nmse:
             best_val_nmse = avg_val_nmse
-            torch.save(model.state_dict(), model_name_val)
+            state_dict = model.state_dict()
+            if save_half_precision:
+                state_dict = {
+                    key: value.detach().cpu().half() if torch.is_floating_point(value) else value.detach().cpu()
+                    for key, value in state_dict.items()
+                }
+            torch.save(state_dict, model_name_val)
             print(f'Saved best model with Val NMSE={avg_val_nmse:.4f}')
 
     print('Last trained model saved')
@@ -708,50 +715,122 @@ def evaluate_test_set(model, test_loader, device='cuda'):
     avg_nmse = total_nmse / n_samples
     return avg_nmse
 
+# 新增函数：共享加载函数，让.npy文件只加载一次，并在不同数据集之间共享
+def prepare_shared_channel_data(smomp_file, accurate_file, user_positions_file,
+                                train_ratio=0.8, val_ratio=0.1, random_seed=42):
+    smomp_channels = np.load(smomp_file)
+    accurate_channels = np.load(accurate_file)
+
+    smomp_channels_real = np.concatenate([
+        np.real(smomp_channels),
+        np.imag(smomp_channels)
+    ], axis=1)
+
+    accurate_channels_real = np.concatenate([
+        np.real(accurate_channels),
+        np.imag(accurate_channels)
+    ], axis=1)
+
+    smomp_max = np.max(np.abs(smomp_channels_real))
+    accurate_max = np.max(np.abs(accurate_channels_real))
+    norm_max = max(smomp_max, accurate_max)
+
+    smomp_channels_normalized = smomp_channels_real / norm_max
+    accurate_channels_normalized = accurate_channels_real / norm_max
+
+    user_positions = []
+    with open(user_positions_file, 'r') as f:
+        lines = f.readlines()
+        for line in lines[1:]:
+            if line.strip():
+                x, y, z = map(float, line.strip().split())
+                user_positions.append((x, y))
+
+    n_samples = len(smomp_channels_normalized)
+    np.random.seed(random_seed)
+    indices = np.random.permutation(n_samples)
+
+    n_train = int(n_samples * train_ratio)
+    n_val = int(n_samples * val_ratio)
+
+    split_indices = {
+        'train': indices[:n_train],
+        'val': indices[n_train:n_train + n_val],
+        'test': indices[n_train + n_val:]
+    }
+
+    shared_data = {
+        'smomp_channels_normalized': smomp_channels_normalized,
+        'accurate_channels_normalized': accurate_channels_normalized,
+        'user_positions': user_positions,
+        'smomp_max': smomp_max,
+        'accurate_max': accurate_max,
+    }
+
+    return shared_data, split_indices
+
 
 class GlobalNormalizedDataset(Dataset):
     """Dataset with global normalization applied before train/test split"""
     
     def __init__(self, smomp_file, accurate_file, user_positions_file, 
                  rss_processor, crop_size=30, split='train', 
-                 train_ratio=0.7, val_ratio=0.15, random_seed=42, use_dbm_values=True):
-        
+                 train_ratio=0.7, val_ratio=0.15, random_seed=42, use_dbm_values=True, 
+                 rss_mode='normal', shared_data=None, split_indices=None):
+        self.rss_mode = rss_mode
+
         # Set random seed for reproducible splits
         np.random.seed(random_seed)
         
-        # Load ALL data first
-        self.smomp_channels = np.load(smomp_file)
-        self.accurate_channels = np.load(accurate_file)
+        # # Load ALL data first
+        # self.smomp_channels = np.load(smomp_file)
+        # self.accurate_channels = np.load(accurate_file)
         
-        # Convert complex to real and imaginary parts
-        self.smomp_channels_real = np.concatenate([
-            np.real(self.smomp_channels),
-            np.imag(self.smomp_channels)
-        ], axis=1)
+        # # Convert complex to real and imaginary parts
+        # self.smomp_channels_real = np.concatenate([
+        #     np.real(self.smomp_channels),
+        #     np.imag(self.smomp_channels)
+        # ], axis=1)
         
-        self.accurate_channels_real = np.concatenate([
-            np.real(self.accurate_channels),
-            np.imag(self.accurate_channels)
-        ], axis=1)
+        # self.accurate_channels_real = np.concatenate([
+        #     np.real(self.accurate_channels),
+        #     np.imag(self.accurate_channels)
+        # ], axis=1)
         
-        # GLOBAL NORMALIZATION - relative to max across ALL data
-        self.smomp_max = np.max(np.abs(self.smomp_channels_real))
-        self.accurate_max = np.max(np.abs(self.accurate_channels_real))
-        # print(self.smomp_max)
-        # print(self.accurate_max)
-        # Normalize ALL data using global parameters
-        self.smomp_channels_normalized = self.smomp_channels_real / max(self.smomp_max, self.accurate_max)
-        self.accurate_channels_normalized = self.accurate_channels_real / max(self.smomp_max, self.accurate_max)
+        # # GLOBAL NORMALIZATION - relative to max across ALL data
+        # self.smomp_max = np.max(np.abs(self.smomp_channels_real))
+        # self.accurate_max = np.max(np.abs(self.accurate_channels_real))
+        # # print(self.smomp_max)
+        # # print(self.accurate_max)
+        # # Normalize ALL data using global parameters
+        # self.smomp_channels_normalized = self.smomp_channels_real / max(self.smomp_max, self.accurate_max)
+        # self.accurate_channels_normalized = self.accurate_channels_real / max(self.smomp_max, self.accurate_max)
         
-        # Load user positions
-        self.user_positions = []
-        with open(user_positions_file, 'r') as f:
-            lines = f.readlines()
-            for line in lines[1:]:
-                if line.strip():
-                    x, y, z = map(float, line.strip().split())
-                    self.user_positions.append((x, y))
-        
+        # # Load user positions
+        # self.user_positions = []
+        # with open(user_positions_file, 'r') as f:
+        #     lines = f.readlines()
+        #     for line in lines[1:]:
+        #         if line.strip():
+        #             x, y, z = map(float, line.strip().split())
+        #             self.user_positions.append((x, y))
+        if shared_data is None or split_indices is None:
+            shared_data, split_indices = prepare_shared_channel_data(
+                smomp_file,
+                accurate_file,
+                user_positions_file,
+                train_ratio=train_ratio,
+                val_ratio=val_ratio,
+                random_seed=random_seed
+            )
+
+        self.smomp_channels_normalized = shared_data['smomp_channels_normalized']
+        self.accurate_channels_normalized = shared_data['accurate_channels_normalized']
+        self.user_positions = shared_data['user_positions']
+        self.smomp_max = shared_data['smomp_max']
+        self.accurate_max = shared_data['accurate_max']
+
+                
         self.rss_processor = rss_processor
         self.crop_size = crop_size
         self.use_dbm_values = use_dbm_values
@@ -767,14 +846,23 @@ class GlobalNormalizedDataset(Dataset):
         n_train = int(n_samples * train_ratio)
         n_val = int(n_samples * val_ratio)
         
+        # if split == 'train':
+        #     self.indices = indices[:n_train]
+        # elif split == 'val':
+        #     self.indices = indices[n_train:n_train + n_val]
+        # elif split == 'test':
+        #     self.indices = indices[n_train + n_val:]
+        # else:
+        #     raise ValueError(f"Invalid split: {split}. Use 'train', 'val', or 'test'")
         if split == 'train':
-            self.indices = indices[:n_train]
+            self.indices = split_indices['train']
         elif split == 'val':
-            self.indices = indices[n_train:n_train + n_val]
+            self.indices = split_indices['val']
         elif split == 'test':
-            self.indices = indices[n_train + n_val:]
+            self.indices = split_indices['test']
         else:
             raise ValueError(f"Invalid split: {split}. Use 'train', 'val', or 'test'")
+
         
         print(f"Split '{split}': {len(self.indices)} samples")
         
@@ -811,6 +899,12 @@ class GlobalNormalizedDataset(Dataset):
         user_x, user_y = self.user_positions[user_idx]
         rss_crop = self.rss_processor.crop_around_user(user_x, user_y, self.crop_size)
         
+        if self.rss_mode == 'zero':
+            rss_crop = np.zeros((self.crop_size, self.crop_size, 3), dtype=np.uint8)
+        elif self.rss_mode == 'constant':
+            rss_crop = np.full((self.crop_size, self.crop_size, 3), 127, dtype=np.uint8)
+
+
         if rss_crop is None:
             rss_crop = np.zeros((self.crop_size, self.crop_size, 3), dtype=np.float32)
         
@@ -842,30 +936,75 @@ class GlobalNormalizedDataset(Dataset):
 
 
 # Usage example:
-def create_datasets(smomp_file, accurate_file, user_positions_file, rss_processor, use_dbm_values=True):
+def create_datasets(smomp_file, accurate_file, user_positions_file, rss_processor, use_dbm_values=True, rss_mode='normal'):
     """Create train, validation, and test datasets with consistent normalization"""
     
-    # Create train dataset (this computes global normalization)
+    # # Create train dataset (this computes global normalization)
+    # train_dataset = GlobalNormalizedDataset(
+    #     smomp_file, accurate_file, user_positions_file, rss_processor,
+    #     split='train', train_ratio=0.8, val_ratio=0.1, use_dbm_values=use_dbm_values, rss_mode=rss_mode
+    # )
+    
+    # # Get normalization params
+    # norm_params = train_dataset.get_normalization_params()
+    # print(f"Using normalization params: {norm_params}")
+    
+    # # Create val and test datasets with same parameters
+    # # (they will use the same global normalization computed in train dataset)
+    # val_dataset = GlobalNormalizedDataset(
+    #     smomp_file, accurate_file, user_positions_file, rss_processor,
+    #     split='val', train_ratio=0.8, val_ratio=0.1, use_dbm_values=use_dbm_values, rss_mode=rss_mode
+    # )
+    
+    # test_dataset = GlobalNormalizedDataset(
+    #     smomp_file, accurate_file, user_positions_file, rss_processor,
+    #     split='test', train_ratio=0.8, val_ratio=0.1, use_dbm_values=use_dbm_values, rss_mode=rss_mode
+    # )
+    shared_data, split_indices = prepare_shared_channel_data(
+        smomp_file,
+        accurate_file,
+        user_positions_file,
+        train_ratio=0.8,
+        val_ratio=0.1,
+        random_seed=42
+    )
+
     train_dataset = GlobalNormalizedDataset(
         smomp_file, accurate_file, user_positions_file, rss_processor,
-        split='train', train_ratio=0.8, val_ratio=0.1, use_dbm_values=use_dbm_values
+        split='train',
+        train_ratio=0.8,
+        val_ratio=0.1,
+        use_dbm_values=use_dbm_values,
+        rss_mode=rss_mode,
+        shared_data=shared_data,
+        split_indices=split_indices
     )
-    
-    # Get normalization params
+
     norm_params = train_dataset.get_normalization_params()
     print(f"Using normalization params: {norm_params}")
-    
-    # Create val and test datasets with same parameters
-    # (they will use the same global normalization computed in train dataset)
+
     val_dataset = GlobalNormalizedDataset(
         smomp_file, accurate_file, user_positions_file, rss_processor,
-        split='val', train_ratio=0.8, val_ratio=0.1, use_dbm_values=use_dbm_values
+        split='val',
+        train_ratio=0.8,
+        val_ratio=0.1,
+        use_dbm_values=use_dbm_values,
+        rss_mode=rss_mode,
+        shared_data=shared_data,
+        split_indices=split_indices
     )
-    
+
     test_dataset = GlobalNormalizedDataset(
         smomp_file, accurate_file, user_positions_file, rss_processor,
-        split='test', train_ratio=0.8, val_ratio=0.1, use_dbm_values=use_dbm_values
+        split='test',
+        train_ratio=0.8,
+        val_ratio=0.1,
+        use_dbm_values=use_dbm_values,
+        rss_mode=rss_mode,
+        shared_data=shared_data,
+        split_indices=split_indices
     )
+
     
     return train_dataset, val_dataset, test_dataset
 
