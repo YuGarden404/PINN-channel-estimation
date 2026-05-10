@@ -1,0 +1,11 @@
+{
+  "model": "cross_attention_residual",
+  "mode": "ls_only",
+  "best_val_nmse": 0.5522485971450806,
+  "test_nmse": 0.6452228426933289,
+  "test_db": -1.9029026577151917,
+  "rank_weight": 0.0,
+  "rank_margin": 0.05,
+  "rank_min_gap": 0.05,
+  "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-5\\runs\\cross_attention_ls_only_ep100\\best_model.pth"
+}

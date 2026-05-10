@@ -1,0 +1,10 @@
+{
+  "model": "cbdnet_channel_estimator",
+  "mode": "ls_only",
+  "best_val_nmse": 2.1190526485443115,
+  "test_nmse": 2.48126482963562,
+  "test_db": 3.946731197382925,
+  "noise_weight": 0.01,
+  "use_rss_context": true,
+  "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-5\\runs\\cbdnet_smoke_test\\best_model.pth"
+}

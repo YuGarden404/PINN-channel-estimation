@@ -1,0 +1,16 @@
+{
+  "model": "nc_cenet_v2",
+  "mode": "ls_only",
+  "epochs_requested": 100,
+  "epochs_trained": 81,
+  "early_stopped": true,
+  "patience": 20,
+  "min_delta": 0.0,
+  "best_epoch": 61,
+  "best_val_nmse": 0.9975149631500244,
+  "test_nmse": 0.9960861504077911,
+  "test_db": -0.01703098294479273,
+  "noise_weight": 0.005,
+  "use_rss_context": true,
+  "best_model": "deepmimo_multibs\\processed\\city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000\\runs\\nc_cenet_v2_ls_only_nw0005_ep100_es20\\best_model.pth"
+}

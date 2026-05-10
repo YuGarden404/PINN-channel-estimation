@@ -1,0 +1,37 @@
+{
+  "scenario": "city_0_newyork_3p5",
+  "target_pair_index": 0,
+  "num_users": 5000,
+  "channel_shape": [
+    5000,
+    1,
+    8,
+    1
+  ],
+  "source_num_users": 31719,
+  "min_power_quantile": 0.0,
+  "sort_by_power": "descending",
+  "power_threshold": null,
+  "selected_power_mean": 2.25726923264169e-10,
+  "selected_power_min": 2.9822594047046458e-12,
+  "selected_power_max": 8.76014816242332e-09,
+  "ls_file": "ls_target_snr-10.npy",
+  "snr": -10.0,
+  "seed": 42,
+  "rss_dir": "deepmimo_multibs\\processed\\city_0_newyork_3p5_rx0_tx1_2_3_rss",
+  "copied_arrays": {
+    "rss_multibs_normalized.npy": [
+      5000,
+      3
+    ],
+    "rss_multibs_db.npy": [
+      5000,
+      3
+    ],
+    "user_positions.npy": [
+      5000,
+      3
+    ]
+  },
+  "notes": "LS-like input is simulated by adding complex AWGN to target channel. This is a first DeepMIMO baseline, not the original LS-OFDM estimator."
+}

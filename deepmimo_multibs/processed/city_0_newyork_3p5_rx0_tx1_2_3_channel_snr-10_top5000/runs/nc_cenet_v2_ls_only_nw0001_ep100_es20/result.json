@@ -1,0 +1,16 @@
+{
+  "model": "nc_cenet_v2",
+  "mode": "ls_only",
+  "epochs_requested": 100,
+  "epochs_trained": 32,
+  "early_stopped": true,
+  "patience": 20,
+  "min_delta": 0.0,
+  "best_epoch": 12,
+  "best_val_nmse": 1.0300080180168152,
+  "test_nmse": 1.0382392406463623,
+  "test_db": 0.1629743917789407,
+  "noise_weight": 0.001,
+  "use_rss_context": true,
+  "best_model": "deepmimo_multibs\\processed\\city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000\\runs\\nc_cenet_v2_ls_only_nw0001_ep100_es20\\best_model.pth"
+}

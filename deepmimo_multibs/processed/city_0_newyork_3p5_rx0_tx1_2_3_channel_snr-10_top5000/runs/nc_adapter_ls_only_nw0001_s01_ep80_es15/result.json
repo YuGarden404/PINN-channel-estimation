@@ -1,0 +1,22 @@
+{
+  "model": "nc_adapter",
+  "mode": "ls_only",
+  "epochs_requested": 80,
+  "epochs_trained": 24,
+  "early_stopped": true,
+  "patience": 15,
+  "min_delta": 0.0,
+  "best_epoch": 9,
+  "best_val_nmse": 0.9943609535694122,
+  "base_val_nmse_at_best": 1.0110113024711609,
+  "test_nmse": 0.9991436898708344,
+  "base_test_nmse": 1.0187538266181946,
+  "delta_vs_base_test_nmse": -0.01961013674736023,
+  "test_db": -0.003720500817653662,
+  "base_test_db": 0.08069253037402448,
+  "adapter_scale": 0.1,
+  "noise_weight": 0.001,
+  "correction_weight": 0.001,
+  "freeze_base": true,
+  "best_model": "deepmimo_multibs\\processed\\city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000\\runs\\nc_adapter_ls_only_nw0001_s01_ep80_es15\\best_model.pth"
+}

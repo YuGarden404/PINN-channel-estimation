@@ -1,0 +1,7 @@
+{
+  "mode": "ls_only",
+  "best_val_nmse": 1.8318904638290405,
+  "test_nmse": 2.0147080421447754,
+  "test_db": 3.0421212001945337,
+  "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-20\\runs\\mlp_ls_only_ep100\\best_model.pth"
+}

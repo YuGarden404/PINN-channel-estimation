@@ -1,0 +1,7 @@
+{
+  "mode": "shuffled_rss",
+  "best_val_nmse": 0.3516358435153961,
+  "test_nmse": 0.4345926195383072,
+  "test_db": -3.619176533514442,
+  "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel\\runs\\shuffled_rss_ep100\\best_model.pth"
+}

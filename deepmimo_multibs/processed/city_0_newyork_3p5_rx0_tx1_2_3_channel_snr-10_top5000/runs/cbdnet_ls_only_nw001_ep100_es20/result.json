@@ -1,0 +1,16 @@
+{
+  "model": "cbdnet_channel_estimator",
+  "mode": "ls_only",
+  "epochs_requested": 100,
+  "epochs_trained": 57,
+  "early_stopped": true,
+  "patience": 20,
+  "min_delta": 0.0,
+  "best_epoch": 37,
+  "best_val_nmse": 1.0665150880813599,
+  "test_nmse": 1.0741963982582092,
+  "test_db": 0.31083691868183844,
+  "noise_weight": 0.01,
+  "use_rss_context": true,
+  "best_model": "deepmimo_multibs\\processed\\city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000\\runs\\cbdnet_ls_only_nw001_ep100_es20\\best_model.pth"
+}
