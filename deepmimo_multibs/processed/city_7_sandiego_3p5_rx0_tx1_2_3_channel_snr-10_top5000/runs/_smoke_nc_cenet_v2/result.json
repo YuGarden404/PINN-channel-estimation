@@ -1,0 +1,16 @@
+{
+  "model": "nc_cenet_v2",
+  "mode": "ls_only",
+  "epochs_requested": 1,
+  "epochs_trained": 1,
+  "early_stopped": false,
+  "patience": 20,
+  "min_delta": 0.0,
+  "best_epoch": 1,
+  "best_val_nmse": 19.263641357421875,
+  "test_nmse": 20.33330535888672,
+  "test_db": 13.082079827916216,
+  "noise_weight": 0.001,
+  "use_rss_context": true,
+  "best_model": "deepmimo_multibs\\processed\\city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000\\runs\\_smoke_nc_cenet_v2\\best_model.pth"
+}

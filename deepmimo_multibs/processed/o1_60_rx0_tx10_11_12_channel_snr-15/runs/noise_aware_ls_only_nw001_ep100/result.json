@@ -1,0 +1,10 @@
+{
+  "model": "noise_aware_residual",
+  "mode": "ls_only",
+  "best_val_nmse": 0.9949281811714172,
+  "test_nmse": 1.0057999193668365,
+  "test_db": 0.025115964683052487,
+  "noise_weight": 0.01,
+  "use_rss_context": true,
+  "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-15\\runs\\noise_aware_ls_only_nw001_ep100\\best_model.pth"
+}

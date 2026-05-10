@@ -110,13 +110,26 @@ def load_deepmimo_matrices(args):
     source_name = "power" if hasattr(dataset, "power") else "pathloss"
     source = getattr(dataset, source_name)
 
-    if args.pair_indices:
-        matrices = [np.asarray(source[idx]) for idx in args.pair_indices]
-    elif isinstance(source, list):
-        matrices = [np.asarray(item) for item in source[: len(args.bs_ids)]]
+    if isinstance(source, list):
+        if args.pair_indices:
+            matrices = [np.asarray(source[idx]) for idx in args.pair_indices]
+        else:
+            matrices = [np.asarray(item) for item in source[: len(args.bs_ids)]]
+    elif args.pair_indices:
+        arr = np.asarray(source)
+        if arr.ndim == 2:
+            matrices = [arr]
+        else:
+            matrices = [arr[idx] for idx in args.pair_indices]
     else:
         arr = np.asarray(source)
         matrices = [arr] if arr.ndim == 2 else [arr[idx] for idx in range(min(arr.shape[0], len(args.bs_ids)))]
+
+    if len(matrices) == 1 and len(args.bs_ids) > 1:
+        raise RuntimeError(
+            f"Scenario exposes one TX/RX matrix, but {len(args.bs_ids)} BS ids were requested. "
+            "For single-BS scenarios, use one --bs-ids value and set --target-bs to the same value."
+        )
 
     if len(matrices) < len(args.bs_ids):
         raise RuntimeError(f"Only found {len(matrices)} matrices for {len(args.bs_ids)} BS ids.")

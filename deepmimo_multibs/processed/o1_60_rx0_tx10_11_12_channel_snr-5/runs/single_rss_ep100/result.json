@@ -1,0 +1,7 @@
+{
+  "mode": "single_rss",
+  "best_val_nmse": 0.6598967015743256,
+  "test_nmse": 0.7931068539619446,
+  "test_db": -1.0066829697017123,
+  "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-5\\runs\\single_rss_ep100\\best_model.pth"
+}

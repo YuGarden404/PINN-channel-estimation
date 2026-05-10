@@ -1,0 +1,11 @@
+{
+  "model": "cross_attention_residual",
+  "mode": "multibs_rss",
+  "best_val_nmse": 1.1138184070587158,
+  "test_nmse": 1.336275339126587,
+  "test_db": 1.2589595360580694,
+  "rank_weight": 0.05,
+  "rank_margin": 0.05,
+  "rank_min_gap": 0.05,
+  "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel\\runs\\cross_attention_rank_smoke_test\\best_model.pth"
+}

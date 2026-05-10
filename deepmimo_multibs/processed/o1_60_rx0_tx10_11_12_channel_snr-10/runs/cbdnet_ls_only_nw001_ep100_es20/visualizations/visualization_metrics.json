@@ -1,0 +1,18 @@
+{
+  "data_dir": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10",
+  "checkpoint": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\cbdnet_ls_only_nw001_ep100_es20\\best_model.pth",
+  "mode": "ls_only",
+  "split": "test",
+  "n_samples_visualized": 500,
+  "ls_file": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\ls_target_snr-10.npy",
+  "ls_nmse": 31.34104347229004,
+  "refined_nmse": 0.8697401285171509,
+  "nmse_gain": 30.471303343772888,
+  "true_noise_energy_mean": 0.08410178869962692,
+  "pred_noise_energy_mean": 0.01512300968170166,
+  "ls_error_energy_mean": 0.08410178869962692,
+  "refined_error_energy_mean": 0.006095704156905413,
+  "residual_energy_mean": 0.08561518788337708,
+  "noise_energy_corr": 0.36309455227659276,
+  "error_energy_corr_before_after": -0.039079237676082866
+}

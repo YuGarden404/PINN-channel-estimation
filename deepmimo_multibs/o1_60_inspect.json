@@ -1,0 +1,85 @@
+{
+  "scenario": "o1_60",
+  "dataset_type": "<class 'deepmimo.datasets.dataset.MacroDataset'>",
+  "public_names": [
+    "PROPAGATE_METHODS",
+    "SINGLE_ACCESS_METHODS",
+    "append",
+    "datasets",
+    "merge",
+    "to_binary"
+  ],
+  "fields": {
+    "power": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "phase": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "delay": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "aoa_az": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "aoa_el": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "aod_az": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "aod_el": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "pathloss": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "rx_pos": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "tx_pos": {
+      "type": "<class 'list'>",
+      "shape": [
+        54,
+        1,
+        3
+      ],
+      "dtype": "float32"
+    },
+    "channel": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "num_paths": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "los": {
+      "type": "<class 'list'>",
+      "array_error": "setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (54,) + inhomogeneous part."
+    },
+    "txrx_sets": {
+      "type": "<class 'list'>",
+      "shape": [
+        54,
+        21
+      ],
+      "dtype": "object"
+    },
+    "scene": {
+      "type": "<class 'deepmimo.core.scene.Scene'>",
+      "shape": [],
+      "dtype": "object",
+      "preview": "Scene(33 objects [buildings: 32, terrain: 1], dims = 503.3 x 650.4 x 34.0 m)"
+    }
+  }
+}

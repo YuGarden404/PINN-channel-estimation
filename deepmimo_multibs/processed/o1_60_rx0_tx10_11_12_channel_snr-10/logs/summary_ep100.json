@@ -1,0 +1,47 @@
+[
+  {
+    "mode": "ls_only",
+    "best_val_nmse": 0.9557458460330963,
+    "test_nmse": 1.07039475440979,
+    "test_db": 0.2954397211987586,
+    "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\ls_only_ep100\\best_model.pth",
+    "log_file": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\logs\\ls_only_ep100.log",
+    "out_dir": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\ls_only_ep100"
+  },
+  {
+    "mode": "single_rss",
+    "best_val_nmse": 0.9944112002849579,
+    "test_nmse": 1.105507254600525,
+    "test_db": 0.4356159686736841,
+    "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\single_rss_ep100\\best_model.pth",
+    "log_file": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\logs\\single_rss_ep100.log",
+    "out_dir": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\single_rss_ep100"
+  },
+  {
+    "mode": "multibs_rss",
+    "best_val_nmse": 1.010699063539505,
+    "test_nmse": 1.1331117153167725,
+    "test_db": 0.542727297696973,
+    "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\multibs_rss_ep100\\best_model.pth",
+    "log_file": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\logs\\multibs_rss_ep100.log",
+    "out_dir": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\multibs_rss_ep100"
+  },
+  {
+    "mode": "zero_rss",
+    "best_val_nmse": 1.0198651552200317,
+    "test_nmse": 1.1126894056797028,
+    "test_db": 0.4637395299232876,
+    "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\zero_rss_ep100\\best_model.pth",
+    "log_file": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\logs\\zero_rss_ep100.log",
+    "out_dir": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\zero_rss_ep100"
+  },
+  {
+    "mode": "shuffled_rss",
+    "best_val_nmse": 1.0086393356323242,
+    "test_nmse": 1.113991916179657,
+    "test_db": 0.4688203933743562,
+    "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\shuffled_rss_ep100\\best_model.pth",
+    "log_file": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\logs\\shuffled_rss_ep100.log",
+    "out_dir": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\shuffled_rss_ep100"
+  }
+]

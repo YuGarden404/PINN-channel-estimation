@@ -1,0 +1,37 @@
+{
+  "scenario": "o1_60",
+  "bs_ids": [
+    10,
+    11,
+    12
+  ],
+  "target_bs": 10,
+  "num_users": 5000,
+  "rss_shape": [
+    5000,
+    3
+  ],
+  "source_matrix": "power",
+  "source_matrix_shapes": [
+    [
+      497931,
+      16
+    ],
+    [
+      497931,
+      17
+    ],
+    [
+      497931,
+      12
+    ]
+  ],
+  "pair_indices": [
+    0,
+    3,
+    6
+  ],
+  "seed": 42,
+  "matrices_only": true,
+  "notes": "First-stage DeepMIMO inspection dataset: RSS/pathloss fingerprint only; no channel/LS arrays."
+}

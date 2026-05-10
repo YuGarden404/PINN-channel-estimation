@@ -1,0 +1,11 @@
+{
+  "model": "cross_attention_residual",
+  "mode": "ls_only",
+  "best_val_nmse": 0.98991259932518,
+  "test_nmse": 0.9917680323123932,
+  "test_db": -0.035898944458730896,
+  "rank_weight": 0.0,
+  "rank_margin": 0.05,
+  "rank_min_gap": 0.05,
+  "best_model": "deepmimo_multibs\\processed\\city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000\\runs\\cross_attention_ls_only_ep100\\best_model.pth"
+}

@@ -1,0 +1,37 @@
+{
+  "scenario": "city_0_newyork_3p5",
+  "bs_ids": [
+    1,
+    2,
+    3
+  ],
+  "target_bs": 1,
+  "num_users": 31719,
+  "rss_shape": [
+    31719,
+    3
+  ],
+  "source_matrix": "power",
+  "source_matrix_shapes": [
+    [
+      31719,
+      25
+    ],
+    [
+      31719,
+      25
+    ],
+    [
+      31719,
+      25
+    ]
+  ],
+  "pair_indices": [
+    0,
+    1,
+    2
+  ],
+  "seed": 42,
+  "matrices_only": true,
+  "notes": "First-stage DeepMIMO inspection dataset: RSS/pathloss fingerprint only; no channel/LS arrays."
+}

@@ -1,0 +1,21 @@
+{
+  "model": "cross_attention",
+  "mode": "ls_only",
+  "data_dir": "deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_snr-10",
+  "checkpoint": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\cross_attention_ls_only_ep100\\best_model.pth",
+  "device": "cuda",
+  "batch_size": 256,
+  "input_meta": {
+    "channel_tokens": 8
+  },
+  "rss_dim": 0,
+  "total_params": 492612,
+  "trainable_params": 492612,
+  "checkpoint_size_mb": 1.8971452713012695,
+  "latency_ms_mean_per_batch": 1.6397084995696787,
+  "latency_ms_std_per_batch": 0.11946461856718107,
+  "latency_ms_p50_per_batch": 1.6563999961363152,
+  "latency_ms_p95_per_batch": 1.8442349988617934,
+  "latency_us_mean_per_sample": 6.405111326444057,
+  "throughput_samples_per_sec": 156125.31133868248
+}

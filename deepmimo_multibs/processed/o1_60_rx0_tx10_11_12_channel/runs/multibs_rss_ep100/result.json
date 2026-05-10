@@ -1,0 +1,7 @@
+{
+  "mode": "multibs_rss",
+  "best_val_nmse": 0.3316531777381897,
+  "test_nmse": 0.4190436452627182,
+  "test_db": -3.777407409725902,
+  "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel\\runs\\multibs_rss_ep100\\best_model.pth"
+}

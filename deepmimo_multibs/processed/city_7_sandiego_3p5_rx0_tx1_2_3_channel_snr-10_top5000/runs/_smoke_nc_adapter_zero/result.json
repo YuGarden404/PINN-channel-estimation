@@ -1,0 +1,22 @@
+{
+  "model": "nc_adapter",
+  "mode": "ls_only",
+  "epochs_requested": 1,
+  "epochs_trained": 1,
+  "early_stopped": false,
+  "patience": 15,
+  "min_delta": 0.0,
+  "best_epoch": 1,
+  "best_val_nmse": 0.988916277885437,
+  "base_val_nmse_at_best": 0.9897369146347046,
+  "test_nmse": 0.9910773038864136,
+  "base_test_nmse": 0.9919003844261169,
+  "delta_vs_base_test_nmse": -0.0008230805397033691,
+  "test_db": -0.03892469286738725,
+  "base_test_db": -0.03531941420802238,
+  "adapter_scale": 0.1,
+  "noise_weight": 0.001,
+  "correction_weight": 0.001,
+  "freeze_base": true,
+  "best_model": "deepmimo_multibs\\processed\\city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000\\runs\\_smoke_nc_adapter_zero\\best_model.pth"
+}

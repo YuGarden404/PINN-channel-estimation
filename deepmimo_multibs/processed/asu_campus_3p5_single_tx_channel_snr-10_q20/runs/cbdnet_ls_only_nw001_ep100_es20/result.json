@@ -1,0 +1,16 @@
+{
+  "model": "cbdnet_channel_estimator",
+  "mode": "ls_only",
+  "epochs_requested": 100,
+  "epochs_trained": 84,
+  "early_stopped": true,
+  "patience": 20,
+  "min_delta": 0.0,
+  "best_epoch": 64,
+  "best_val_nmse": 105344056.0,
+  "test_nmse": 92577588.0,
+  "test_db": 79.66505861563057,
+  "noise_weight": 0.01,
+  "use_rss_context": true,
+  "best_model": "deepmimo_multibs\\processed\\asu_campus_3p5_single_tx_channel_snr-10_q20\\runs\\cbdnet_ls_only_nw001_ep100_es20\\best_model.pth"
+}

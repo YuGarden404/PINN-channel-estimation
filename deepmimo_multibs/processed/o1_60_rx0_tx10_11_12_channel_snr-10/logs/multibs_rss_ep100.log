@@ -1,0 +1,131 @@
+{
+  "mode": "multibs_rss",
+  "data_dir": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10",
+  "n_samples": 5000,
+  "channel_dim": 16,
+  "rss_dim": 3,
+  "device": "cuda",
+  "ls_file": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\ls_target_snr-10.npy"
+}
+Epoch 1/100: Train NMSE=67.273396, Val NMSE=13.178550
+Saved best model with Val NMSE=13.178550
+Epoch 2/100: Train NMSE=8.572691, Val NMSE=5.521374
+Saved best model with Val NMSE=5.521374
+Epoch 3/100: Train NMSE=4.708074, Val NMSE=4.044637
+Saved best model with Val NMSE=4.044637
+Epoch 4/100: Train NMSE=2.938839, Val NMSE=2.562164
+Saved best model with Val NMSE=2.562164
+Epoch 5/100: Train NMSE=2.254630, Val NMSE=2.003109
+Saved best model with Val NMSE=2.003109
+Epoch 6/100: Train NMSE=1.958268, Val NMSE=1.721990
+Saved best model with Val NMSE=1.721990
+Epoch 7/100: Train NMSE=1.831249, Val NMSE=1.550221
+Saved best model with Val NMSE=1.550221
+Epoch 8/100: Train NMSE=1.621067, Val NMSE=1.462057
+Saved best model with Val NMSE=1.462057
+Epoch 9/100: Train NMSE=1.506861, Val NMSE=1.490517
+Epoch 10/100: Train NMSE=1.502563, Val NMSE=1.434303
+Saved best model with Val NMSE=1.434303
+Epoch 11/100: Train NMSE=1.391452, Val NMSE=1.308710
+Saved best model with Val NMSE=1.308710
+Epoch 12/100: Train NMSE=1.344614, Val NMSE=1.348961
+Epoch 13/100: Train NMSE=1.323662, Val NMSE=1.410503
+Epoch 14/100: Train NMSE=1.251013, Val NMSE=1.239404
+Saved best model with Val NMSE=1.239404
+Epoch 15/100: Train NMSE=1.248567, Val NMSE=1.508666
+Epoch 16/100: Train NMSE=1.326266, Val NMSE=1.363876
+Epoch 17/100: Train NMSE=1.264402, Val NMSE=1.134986
+Saved best model with Val NMSE=1.134986
+Epoch 18/100: Train NMSE=1.251691, Val NMSE=1.278893
+Epoch 19/100: Train NMSE=1.237222, Val NMSE=1.359455
+Epoch 20/100: Train NMSE=1.264469, Val NMSE=1.256372
+Epoch 21/100: Train NMSE=1.162967, Val NMSE=1.178322
+Epoch 22/100: Train NMSE=1.202708, Val NMSE=1.254396
+Epoch 23/100: Train NMSE=1.132108, Val NMSE=1.141360
+Epoch 24/100: Train NMSE=1.169327, Val NMSE=1.225647
+Epoch 25/100: Train NMSE=1.103576, Val NMSE=1.119767
+Saved best model with Val NMSE=1.119767
+Epoch 26/100: Train NMSE=1.150595, Val NMSE=1.213856
+Epoch 27/100: Train NMSE=1.152535, Val NMSE=1.181464
+Epoch 28/100: Train NMSE=1.097387, Val NMSE=1.022090
+Saved best model with Val NMSE=1.022090
+Epoch 29/100: Train NMSE=1.201794, Val NMSE=1.229368
+Epoch 30/100: Train NMSE=1.098317, Val NMSE=1.178842
+Epoch 31/100: Train NMSE=1.077309, Val NMSE=1.047094
+Epoch 32/100: Train NMSE=1.074183, Val NMSE=1.167256
+Epoch 33/100: Train NMSE=1.038092, Val NMSE=1.145911
+Epoch 34/100: Train NMSE=1.030157, Val NMSE=1.062822
+Epoch 35/100: Train NMSE=1.028619, Val NMSE=1.225549
+Epoch 36/100: Train NMSE=1.040206, Val NMSE=1.103267
+Epoch 37/100: Train NMSE=1.017521, Val NMSE=1.117264
+Epoch 38/100: Train NMSE=1.010588, Val NMSE=1.116287
+Epoch 39/100: Train NMSE=0.996857, Val NMSE=1.177386
+Epoch 40/100: Train NMSE=1.012637, Val NMSE=1.146556
+Epoch 41/100: Train NMSE=1.019709, Val NMSE=1.084892
+Epoch 42/100: Train NMSE=0.990852, Val NMSE=1.202782
+Epoch 43/100: Train NMSE=1.003308, Val NMSE=1.049935
+Epoch 44/100: Train NMSE=0.970588, Val NMSE=1.110093
+Epoch 45/100: Train NMSE=0.948864, Val NMSE=1.187294
+Epoch 46/100: Train NMSE=1.006744, Val NMSE=1.062403
+Epoch 47/100: Train NMSE=0.980293, Val NMSE=1.058133
+Epoch 48/100: Train NMSE=0.970088, Val NMSE=1.111989
+Epoch 49/100: Train NMSE=0.965953, Val NMSE=1.121132
+Epoch 50/100: Train NMSE=1.002480, Val NMSE=1.010699
+Saved best model with Val NMSE=1.010699
+Epoch 51/100: Train NMSE=0.982578, Val NMSE=1.083884
+Epoch 52/100: Train NMSE=0.946712, Val NMSE=1.251029
+Epoch 53/100: Train NMSE=1.006030, Val NMSE=1.121601
+Epoch 54/100: Train NMSE=0.904447, Val NMSE=1.070051
+Epoch 55/100: Train NMSE=0.929379, Val NMSE=1.090114
+Epoch 56/100: Train NMSE=0.903939, Val NMSE=1.121350
+Epoch 57/100: Train NMSE=0.975272, Val NMSE=1.090804
+Epoch 58/100: Train NMSE=0.933595, Val NMSE=1.034975
+Epoch 59/100: Train NMSE=0.919836, Val NMSE=1.175563
+Epoch 60/100: Train NMSE=0.979341, Val NMSE=1.105369
+Epoch 61/100: Train NMSE=0.947722, Val NMSE=1.069213
+Epoch 62/100: Train NMSE=0.908818, Val NMSE=1.035986
+Epoch 63/100: Train NMSE=0.904869, Val NMSE=1.136326
+Epoch 64/100: Train NMSE=0.879133, Val NMSE=1.067168
+Epoch 65/100: Train NMSE=0.876802, Val NMSE=1.091408
+Epoch 66/100: Train NMSE=0.875716, Val NMSE=1.111895
+Epoch 67/100: Train NMSE=0.887641, Val NMSE=1.065261
+Epoch 68/100: Train NMSE=0.873486, Val NMSE=1.072603
+Epoch 69/100: Train NMSE=0.867638, Val NMSE=1.086899
+Epoch 70/100: Train NMSE=0.868448, Val NMSE=1.105888
+Epoch 71/100: Train NMSE=0.872908, Val NMSE=1.162110
+Epoch 72/100: Train NMSE=0.850038, Val NMSE=1.106334
+Epoch 73/100: Train NMSE=0.869199, Val NMSE=1.115251
+Epoch 74/100: Train NMSE=0.874152, Val NMSE=1.092049
+Epoch 75/100: Train NMSE=0.870753, Val NMSE=1.181961
+Epoch 76/100: Train NMSE=0.893069, Val NMSE=1.131437
+Epoch 77/100: Train NMSE=0.826686, Val NMSE=1.041121
+Epoch 78/100: Train NMSE=0.831371, Val NMSE=1.094993
+Epoch 79/100: Train NMSE=0.865190, Val NMSE=1.099976
+Epoch 80/100: Train NMSE=0.826997, Val NMSE=1.112669
+Epoch 81/100: Train NMSE=0.844244, Val NMSE=1.115338
+Epoch 82/100: Train NMSE=0.847037, Val NMSE=1.113017
+Epoch 83/100: Train NMSE=0.815078, Val NMSE=1.077762
+Epoch 84/100: Train NMSE=0.795243, Val NMSE=1.138074
+Epoch 85/100: Train NMSE=0.933558, Val NMSE=1.111064
+Epoch 86/100: Train NMSE=0.837460, Val NMSE=1.096478
+Epoch 87/100: Train NMSE=0.824386, Val NMSE=1.076778
+Epoch 88/100: Train NMSE=0.862987, Val NMSE=1.043216
+Epoch 89/100: Train NMSE=0.833308, Val NMSE=1.132879
+Epoch 90/100: Train NMSE=0.939578, Val NMSE=1.230836
+Epoch 91/100: Train NMSE=0.985782, Val NMSE=1.179693
+Epoch 92/100: Train NMSE=0.906667, Val NMSE=1.456630
+Epoch 93/100: Train NMSE=0.808570, Val NMSE=1.052336
+Epoch 94/100: Train NMSE=0.751512, Val NMSE=1.100893
+Epoch 95/100: Train NMSE=0.779039, Val NMSE=1.110678
+Epoch 96/100: Train NMSE=0.762182, Val NMSE=1.123712
+Epoch 97/100: Train NMSE=0.794825, Val NMSE=1.101959
+Epoch 98/100: Train NMSE=0.776434, Val NMSE=1.168088
+Epoch 99/100: Train NMSE=0.842367, Val NMSE=1.074363
+Epoch 100/100: Train NMSE=0.926055, Val NMSE=1.090437
+{
+  "mode": "multibs_rss",
+  "best_val_nmse": 1.010699063539505,
+  "test_nmse": 1.1331117153167725,
+  "test_db": 0.542727297696973,
+  "best_model": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\multibs_rss_ep100\\best_model.pth"
+}

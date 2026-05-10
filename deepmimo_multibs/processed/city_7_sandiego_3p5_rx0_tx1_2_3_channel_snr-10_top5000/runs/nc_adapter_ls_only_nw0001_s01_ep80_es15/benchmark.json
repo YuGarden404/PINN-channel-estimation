@@ -1,0 +1,22 @@
+{
+  "model": "nc_adapter",
+  "mode": "ls_only",
+  "data_dir": "deepmimo_multibs/processed/city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000",
+  "checkpoint": "deepmimo_multibs\\processed\\city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000\\runs\\nc_adapter_ls_only_nw0001_s01_ep80_es15\\best_model.pth",
+  "base_checkpoint": "deepmimo_multibs/processed/city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/cross_attention_ls_only_ep100/best_model.pth",
+  "device": "cuda",
+  "batch_size": 256,
+  "input_meta": {
+    "channel_tokens": 8
+  },
+  "rss_dim": 0,
+  "total_params": 605482,
+  "trainable_params": 112870,
+  "checkpoint_size_mb": 2.3451433181762695,
+  "latency_ms_mean_per_batch": 2.4953600002481835,
+  "latency_ms_std_per_batch": 0.2791101853778768,
+  "latency_ms_p50_per_batch": 2.3657000056118704,
+  "latency_ms_p95_per_batch": 3.1208349981170613,
+  "latency_us_mean_per_sample": 9.747500000969467,
+  "throughput_samples_per_sec": 102590.40778666755
+}

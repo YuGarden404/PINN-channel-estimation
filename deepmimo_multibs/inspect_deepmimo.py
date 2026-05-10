@@ -79,7 +79,10 @@ def main():
     print(json.dumps(summary["fields"], indent=2, default=str))
 
     if hasattr(dataset, "info"):
-        print(dataset.info())
+        try:
+            print(dataset.info())
+        except UnicodeEncodeError as exc:
+            print(f"dataset.info() skipped because the current console encoding cannot print it: {exc}")
     else:
         print("No dataset.info() method found. Inspect dir(dataset) below:")
         print([name for name in dir(dataset) if not name.startswith("_")][:80])

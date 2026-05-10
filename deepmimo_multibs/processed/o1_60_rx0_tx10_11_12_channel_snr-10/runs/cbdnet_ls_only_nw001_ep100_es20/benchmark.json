@@ -1,0 +1,21 @@
+{
+  "model": "cbdnet",
+  "mode": "ls_only",
+  "data_dir": "deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_snr-10",
+  "checkpoint": "deepmimo_multibs\\processed\\o1_60_rx0_tx10_11_12_channel_snr-10\\runs\\cbdnet_ls_only_nw001_ep100_es20\\best_model.pth",
+  "device": "cuda",
+  "batch_size": 256,
+  "input_meta": {
+    "channel_tokens": 8
+  },
+  "rss_dim": 0,
+  "total_params": 905926,
+  "trainable_params": 905926,
+  "checkpoint_size_mb": 3.4849748611450195,
+  "latency_ms_mean_per_batch": 2.341789499114384,
+  "latency_ms_std_per_batch": 0.4127285708224982,
+  "latency_ms_p50_per_batch": 2.173749999201391,
+  "latency_ms_p95_per_batch": 3.4906399909232277,
+  "latency_us_mean_per_sample": 9.147615230915562,
+  "throughput_samples_per_sec": 109318.10911989052
+}
