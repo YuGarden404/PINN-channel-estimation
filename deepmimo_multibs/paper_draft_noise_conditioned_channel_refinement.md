@@ -1,14 +1,14 @@
 # 面向 DeepMIMO 信道估计的噪声条件残差细化方法
 
-> 论文中文初稿。除模型名、英文术语、公式、脚本名和必要引用外，主体内容均使用中文撰写。本文工作基于原作者公开代码 **Physics-Informed Neural Networks for Wireless Channel Estimation with Limited Pilot Signals** 进行复现、扩展和二次实验。我们引用并承接原作者关于 PINN、RSS-informed refinement、Transformer / cross-attention 信道细化的基础框架，在此基础上新增 DeepMIMO 数据构建、RSS 对照实验、noise-aware baseline、noise-conditioned residual refinement、轻量噪声条件 adapter、早停规范、消融实验、可视化、效率测试和跨场景验证。
+> 论文中文初稿。除模型名、英文术语、公式、脚本名和必要引用外，主体内容均使用中文撰写。本文工作基于原作者公开代码 **Physics-Informed Neural Networks for Wireless Channel Estimation with Limited Pilot Signals** 进行复现、扩展和二次实验。我们引用并承接原作者关于 PINN、RSS-informed refinement、Transformer / cross-attention 信道细化的基础框架，在此基础上新增 DeepMIMO 数据构建、RSS 对照实验、noise-aware baseline、noise-conditioned residual refinement、轻量噪声条件 adapter、早停规范、消融实验、可视化、效率测试和多场景验证。
 
 ## 摘要
 
 准确的无线信道估计是下一代移动通信系统中的关键问题。传统 LS / MMSE 等模型驱动方法具有较好的可解释性，但在低 SNR、少导频和复杂传播环境下容易退化；纯数据驱动方法虽然表达能力强，但往往缺少物理约束和稳定解释。原作者提出的 physics-informed neural channel estimation 框架通过将初始 LS-OFDM 信道估计与 RSS map 等传播环境信息结合，实现了对传统估计结果的神经细化。
 
-本文在原作者工作基础上进一步研究 DeepMIMO 场景中的信道细化问题。实验首先发现，在当前低维 DeepMIMO 多基站设置下，直接拼接或注意力融合 RSS 信息并不能稳定提升 NMSE；相反，cross-attention residual refinement 本身是有效的。基于这一观察，本文将研究重点从“如何直接融合 RSS”转向“如何更鲁棒地修正 noisy LS-like 信道输入”。受非盲去噪和残差误差建模思想启发，本文提出一种 **noise-conditioned residual refinement** 框架：一方面通过显式估计 token-wise noise map 引导信道去噪；另一方面在已训练 cross-attention estimator 之后引入零初始化轻量 adapter，使其只学习 baseline 未能消除的剩余误差。
+本文在原作者工作基础上进一步研究 DeepMIMO 场景中的信道细化问题。实验首先发现，在当前低维 DeepMIMO 多基站设置下，直接拼接或注意力融合 RSS 信息并不能稳定提升 NMSE；相反，cross-attention residual refinement 本身是有效的。基于这一观察，本文将研究重点从“如何直接融合 RSS”转向“如何更鲁棒地修正 noisy LS / OFDM-LS 信道输入”。受非盲去噪和残差误差建模思想启发，本文提出一种 **noise-conditioned residual refinement** 框架：一方面通过学习 token-wise noise-conditioned feature / map 引导信道去噪；另一方面在已训练 cross-attention estimator 之后引入零初始化轻量 adapter，使其只学习 baseline 未能消除的剩余误差。
 
-在 DeepMIMO `o1_60` 场景下，独立训练的 NC-CENet 在 `0 dB`、`-5 dB` 和 `-10 dB` 三档 SNR 中均达到优于或不弱于 cross-attention baseline 的效果，尤其在 `-10 dB` 下将 Test NMSE 从 `0.9681` 降至 `0.8711`。进一步的 noise weight 消融、RSS 对照实验和 noise map / residual 可视化表明，性能提升主要来自显式 noise-conditioned refinement，而不是直接 RSS fusion。跨场景实验进一步显示，轻量 noise-conditioned adapter 能在 `asu_campus_3p5`、`city_7_sandiego_3p5` 和 `city_0_newyork_3p5` 上均超过对应 cross-attention baseline，说明噪声条件化不仅可以作为独立 estimator，也可以作为已有强估计器之后的低风险增量校准模块。
+在 DeepMIMO `o1_60` 场景下，独立训练的 NC-CENet 在 `0 dB`、`-5 dB` 和 `-10 dB` 三档 SNR 中均达到优于或不弱于 cross-attention baseline 的效果，尤其在 `-10 dB` 下将 Test NMSE 从 `0.9681` 降至 `0.8711`。进一步的 noise weight 消融、RSS 对照实验和 noise map / residual 可视化表明，性能提升主要来自显式 noise-conditioned refinement，而不是直接 RSS fusion。多场景实验进一步显示，轻量 noise-conditioned adapter 能在 `asu_campus_3p5`、`city_7_sandiego_3p5` 和 `city_0_newyork_3p5` 上取得相对对应 baseline 的正向增益；在 pilot-limited OFDM-LS 输入下，该 adapter 在不同 pilot spacing 中也持续降低 NMSE。上述结果说明，噪声条件化不仅可以作为独立 estimator 的机制验证，也可以作为已有强估计器之后的低风险增量校准模块。
 
 ## 1. 引言
 
@@ -22,7 +22,9 @@
 
 本文核心问题可以概括为：
 
-> 在 RSS fusion 收益不稳定的情况下，是否可以通过显式 noise map estimation 和 non-blind denoising，提高 noisy LS-like channel refinement 的鲁棒性？
+> 在 RSS fusion 收益不稳定的情况下，是否可以通过noise-conditioned feature / map estimation 和 non-blind denoising，提高 noisy LS / OFDM-LS channel refinement 的鲁棒性？
+
+本文的实验组织遵循一条主线：首先在受控 AWGN LS-like 输入上分析 noise-conditioned refinement 的机制和 SNR 趋势；随后在 pilot-limited OFDM-LS 输入上验证该机制能够接入更接近通信链路的初始估计；最后通过多场景和少样本 adapter 实验验证其作为 frozen cross-attention estimator 后处理模块的稳定性。
 
 ## 2. 与原作者代码和工作的关系
 
@@ -62,7 +64,7 @@
 - noise weight 消融；
 - RSS 辅助条件对照实验；
 - noise map / residual 可视化；
-- `asu_campus_3p5` 跨场景验证。
+- `asu_campus_3p5` 多场景验证。
 
 正式论文中应明确声明：
 
@@ -70,7 +72,7 @@
 
 ## 3. 问题定义
 
-设真实信道为 `H`，noisy LS-like 初始估计为 `H_LS`。在当前 DeepMIMO 实验中，`H_LS` 由真实信道叠加复高斯白噪声得到：
+设真实信道为 `H`，初始信道估计为 `H_LS`。本文包含两类输入设置。第一类是受控 AWGN LS-like 输入，用于隔离噪声强度、RSS 条件和网络结构对 refinement 的影响；第二类是 pilot-limited OFDM-LS 输入，用于验证所提方法能否接入更接近通信链路的导频估计结果。在受控设置中，`H_LS` 由真实信道叠加复高斯白噪声得到：
 
 ```text
 H_LS = H + N
@@ -84,7 +86,7 @@ H_LS = H + N
 f_theta(H_LS, c) -> H_hat
 ```
 
-其中 `c` 可以是可选上下文信息，例如 RSS。本文最终主模型不依赖 RSS，而是将显式估计的 noise map 作为条件信息。
+其中 `c` 可以是可选上下文信息，例如 RSS。本文最终主模型不依赖 RSS，而是将学习得到的 noise-conditioned feature / map 作为条件信息。
 
 评价指标为 NMSE：
 
@@ -99,9 +101,11 @@ NMSE = ||H_hat - H||_2^2 / ||H||_2^2
 - 每个 complex token 展开为 real / imaginary 两个实数维度
 - 输入 token shape 可理解为 `[8, 2]`
 
+在 OFDM-LS 设置中，本文将 delay-domain channel 映射到 `1024` 个子载波，在均匀 pilot 上加入噪声并进行插值，然后 IFFT 回到 delay taps。该设置不改变后续神经 refinement 的输入接口，因此 cross-attention baseline 与 adapter 可以复用同一训练脚本。
+
 ## 4. RSS 融合实验带来的动机
 
-原作者工作强调 RSS map 等传播环境信息可以作为物理先验，辅助信道估计。本文首先在 DeepMIMO 多基站设置下测试这一思路是否稳定。
+原作者工作强调 RSS map 等传播环境信息可以作为物理先验，辅助信道估计。本文首先在 DeepMIMO 多基站设置下测试简单 RSS fusion 在当前低维信道表示中是否能稳定转化为 NMSE 收益。
 
 ### 4.1 MLP RSS Baseline
 
@@ -121,7 +125,7 @@ Test NMSE 如下：
 | -5 dB | 0.754223 | 0.793107 | 0.794015 | **0.734087** | 0.774373 |
 | -10 dB | **1.070395** | 1.105507 | 1.133112 | 1.112689 | 1.113992 |
 
-可以看到，naive RSS concatenation 没有稳定优于 `ls_only`。特别是 `zero_rss` 在部分设置下反而更优，说明当前 MLP 结构并没有稳定利用 RSS 中的样本级传播信息。
+可以看到，在当前低维 DeepMIMO 表示与简单拼接结构下，naive RSS concatenation 没有稳定优于 `ls_only`。这一结果提示：RSS 作为传播先验仍可能有价值，但需要更合适的表示或融合机制；本文后续因此将主要条件信号转向由输入估计自身学习得到的 noise-conditioned feature。
 
 ### 4.2 Cross-Attention Residual Baseline
 
@@ -137,7 +141,7 @@ Test NMSE 如下：
 | zero_rss | 0.298630 | 0.368618 | -4.33 |
 | shuffled_rss | 0.305098 | 0.384424 | -4.15 |
 
-cross-attention 相比 MLP 有明显提升，但 RSS 仍不稳定。这说明 cross-attention residual refinement 是有价值的，而 RSS fusion 在当前低维 DeepMIMO 设置下不是稳定收益来源。
+cross-attention 相比 MLP 有明显提升，但 RSS 分支并未稳定带来额外收益。这说明 cross-attention residual refinement 是有价值的，而在当前低维 DeepMIMO 设置下，直接 RSS fusion 不是本文最可靠的收益来源。
 
 这也引出本文方法：保留 residual refinement 的思想，但将显式噪声条件作为更可靠的 refinement guidance。
 
@@ -145,7 +149,7 @@ cross-attention 相比 MLP 有明显提升，但 RSS 仍不稳定。这说明 cr
 
 本文提出一种噪声条件残差细化框架。该框架继承原作者“model-based initial estimation + neural refinement”的混合思想，但将条件信息从外部 RSS prior 扩展为由输入信道自身估计得到的显式噪声条件。换言之，本文并不把 noisy LS-like 信道估计视为普通黑盒输入，而是先估计其噪声状态，再在噪声条件已知的情况下执行 residual refinement。
 
-为了避免将方法退化为简单堆叠网络，本文采用两级论证方式。第一，构建独立训练的 **NC-CENet: Noise-Conditioned Channel Estimation Network**，验证显式 noise map 对低 SNR 信道细化是否有帮助。第二，在跨场景实验中进一步采用 **noise-conditioned adapter**：以已经训练好的 cross-attention estimator 作为主估计器并冻结其参数，adapter 仅学习主估计器输出中的剩余误差。该设计使本文方法更接近 residual error compensation / post-refinement，而不是任意增加网络深度。
+为了避免将方法退化为简单堆叠网络，本文采用两级论证方式。第一，构建独立训练的 **NC-CENet: Noise-Conditioned Channel Estimation Network**，验证noise-conditioned feature / map 对低 SNR 信道细化是否有帮助。第二，在多场景验证中进一步采用 **noise-conditioned adapter**：以已经训练好的 cross-attention estimator 作为主估计器并冻结其参数，adapter 仅学习主估计器输出中的剩余误差。该设计使本文方法更接近 residual error compensation / post-refinement，而不是任意增加网络深度。
 
 ### 5.1 噪声条件化的基本形式
 
@@ -211,7 +215,7 @@ X_hat = X_LS + Delta_X
 
 ### 5.4 Cross-Attention 后的噪声条件 Adapter
 
-独立训练的 NC-CENet 能够验证噪声条件化本身的有效性，但在跨场景实验中，直接从零训练一个新的 estimator 也会引入优化稳定性和场景分布差异的问题。为了更严格地回答“噪声条件化是否能在 cross-attention baseline 基础上带来增益”，本文进一步设计轻量 noise-conditioned adapter。
+独立训练的 NC-CENet 能够验证噪声条件化本身的有效性，但在多场景实验中，直接从零训练一个新的 estimator 也会引入优化稳定性和场景分布差异的问题。为了更严格地回答“噪声条件化是否能在 cross-attention baseline 基础上带来增益”，本文进一步设计轻量 noise-conditioned adapter。
 
 设已经训练好的 cross-attention estimator 为 `F_ca`：
 
@@ -327,16 +331,16 @@ deepmimo_multibs/build_channel_dataset.py
 - 随机种子：`42`
 - 设备：CUDA
 
-当前 LS-like 输入由 clean channel 叠加 complex AWGN 得到。因此本文现阶段结果应被理解为 DeepMIMO-based neural channel refinement baseline，而不是完整通信链路中的最终 OFDM-LS benchmark。
+本文包含两类初始估计输入。受控 AWGN LS-like 输入用于机制分析：它允许在相同信道和相同划分下直接比较 RSS fusion、noise weight、noise map 监督和 residual refinement 的影响。Pilot-limited OFDM-LS 输入用于链路验证：它检验相同 neural refinement / adapter 是否能处理由导频观测、插值和 IFFT 得到的初始信道估计。因此，本文主结果不是单一依赖 AWGN proxy，而是将 AWGN 设置作为 controlled study，将 OFDM-LS 设置作为更接近通信链路的补充验证。
 
 ### 6.2 Model Selection
 
 所有最终测试结果均加载 validation NMSE 最低的 `best_model.pth` 后计算。需要特别说明的是，本文包含两类模型证据：
 
-- **独立噪声条件模型**：包括 noise-aware baseline 和 NC-CENet / CBDNet-style estimator，用于验证显式 noise map、noise loss、RSS 对照和低 SNR 去噪机理；
+- **独立噪声条件模型**：包括 noise-aware baseline 和 NC-CENet / CBDNet-style estimator，用于验证noise-conditioned feature / map、noise loss、RSS 对照和低 SNR 去噪机理；
 - **后置噪声条件 adapter**：以已训练 cross-attention checkpoint 为主估计器并冻结其参数，只训练零初始化轻量 adapter，用于验证在强 baseline 基础上的增量残差校准能力。
 
-因此，第 7 节和第 8 节中的 SNR 曲线、noise weight 消融、RSS 对照和可视化主要对应独立 NC-CENet / CBDNet-style estimator；第 10 节跨场景验证中的 San Diego 和 New York 结果对应 noise-conditioned adapter。二者回答的问题不同，不能将独立模型的效率或消融结果直接等同于 adapter 的结果。
+因此，第 7 节和第 8 节中的 SNR 曲线、noise weight 消融、RSS 对照和可视化主要对应独立 NC-CENet / CBDNet-style estimator；第 10 节多场景验证中的 San Diego 和 New York 结果对应 noise-conditioned adapter。二者回答的问题不同，不能将独立模型的效率或消融结果直接等同于 adapter 的结果。
 
 CBDNet-style 模型使用：
 
@@ -508,17 +512,18 @@ deepmimo_multibs/visualize_cbdnet_noise.py
 - noise energy correlation 在低 SNR 下更高，支持“噪声条件化在强噪声场景下更有价值”；
 - predicted noise map 不应被解释为逐点精确物理噪声，而应理解为 denoising guidance feature。
 
-## 10. 跨场景验证
+## 10. 多场景与目标场景校准验证
 
-为了验证结论不只依赖 `o1_60`，本文进一步测试 DeepMIMO `asu_campus_3p5`、`city_7_sandiego_3p5` 和 `city_0_newyork_3p5` 三个额外场景。
+为了验证结论不只依赖 `o1_60`，本文进一步测试 DeepMIMO `asu_campus_3p5`、`city_7_sandiego_3p5` 和 `city_0_newyork_3p5` 三个额外场景。需要强调的是，本节实验主要是多场景重复验证和目标场景校准验证，不等同于 source-to-target zero-shot 泛化。
 
 建议图：
 
 ```text
 deepmimo_multibs/paper_figures/fig6_cross_scenario_asu.png
+deepmimo_multibs/paper_figures/fig8_adapter_multiseed_fewshot.png
 ```
 
-在 `asu_campus_3p5` 场景中，初始直接取前 `5000` 个用户时，NMSE 出现 `1e8` 量级异常。检查后发现，样本中包含大量零信道或极弱信道，导致 NMSE 分母 `||H||^2` 接近 0。因此，跨场景实验统一采用按平均信道功率从高到低排序后选取 top-5000 有效覆盖用户：
+为了保证不同场景中的 NMSE 对比不被 near-zero channel 样本主导，多场景实验统一采用按平均信道功率从高到低排序后选取 top-5000 有效覆盖用户：
 
 ```text
 --sort-by-power descending --num-users 5000
@@ -543,11 +548,61 @@ deepmimo_multibs/paper_figures/fig6_cross_scenario_asu.png
 | city_0_newyork_3p5 | top-5000 power | Cross-attention ls_only | 1.011011 | 1.018754 | 0.0807 |
 | city_0_newyork_3p5 | top-5000 power | Noise-conditioned adapter | **0.994361** | **0.999144** | **-0.0037** |
 
-早期 CBDNet-style 模型在 San Diego 和 New York 上直接从零训练时表现不稳定，说明仅靠固定结构和固定 `noise_weight = 0.01` 并不能保证跨场景泛化。为更严格验证“噪声条件化是否能在 cross-attention 基础上带来增益”，本文进一步采用轻量 **noise-conditioned adapter**：先加载每个场景训练好的 cross-attention checkpoint，并冻结其参数，然后训练一个零初始化的小型噪声条件 adapter 对 cross-attention 输出进行二次残差修正。由于 adapter 初始状态等价于原 cross-attention estimator，最终提升可以解释为对强 baseline 的增量 refinement。
+为更严格验证“噪声条件化是否能在 cross-attention 基础上带来增量收益”，本文进一步采用轻量 **noise-conditioned adapter**：先加载每个场景训练好的 cross-attention checkpoint，并冻结其参数，然后训练一个零初始化的小型噪声条件 adapter 对 cross-attention 输出进行二次残差修正。由于 adapter 初始状态等价于原 cross-attention estimator，最终提升可以解释为对强 baseline 的增量 refinement。
 
-结果显示，在 San Diego 和 New York 两个城市级场景中，noise-conditioned adapter 均超过对应 cross-attention baseline。其中 San Diego 的 Test NMSE 从 `0.991768` 降至 `0.989168`，New York 从 `1.018754` 降至 `0.999144`。这说明，当噪声条件模块以轻量 adapter 形式叠加在已有 cross-attention estimator 上时，跨场景稳定性明显优于从零训练的 CBDNet-style 版本，也更符合“在原作者 cross-attention refinement 基础上进一步提升”的论文主张。
+结果显示，在 San Diego 和 New York 两个城市级场景中，noise-conditioned adapter 均超过对应 cross-attention baseline。其中单 seed 结果中，San Diego 的 Test NMSE 从 `0.991768` 降至 `0.989168`，New York 从 `1.018754` 降至 `0.999144`。这说明，当噪声条件模块以轻量 adapter 形式叠加在已有 cross-attention estimator 上时，可以在不重训主干的前提下带来稳定的后置校准收益，也更符合“在原作者 cross-attention refinement 基础上进一步提升”的论文主张。
 
-## 11. 效率与低时延分析
+为进一步降低单次随机划分或初始化带来的偶然性，本文对 San Diego 和 New York 的 adapter 实验补充 `seed = 7, 21, 42` 三组重复实验。结果如下：
+
+| Scenario | Seeds | Cross-attn Test NMSE | Adapter Test NMSE | Delta vs. Cross-attn | Improved Seeds |
+|---|---:|---:|---:|---:|---:|
+| city_7_sandiego_3p5 | 7 / 21 / 42 | 0.986318 ± 0.005156 | **0.983182 ± 0.005239** | **-0.003136 ± 0.002917** | 3 / 3 |
+| city_0_newyork_3p5 | 7 / 21 / 42 | 1.011900 ± 0.006112 | **0.994607 ± 0.004225** | **-0.017293 ± 0.003571** | 3 / 3 |
+
+可以看到，adapter 在两个城市级场景的三组随机种子上均取得正向增益。San Diego 的平均提升较小但方向一致，New York 的平均提升更清晰。这一结果不能被解释为一次偶然 seed 的波动，而更支持“冻结 cross-attention 主干后的噪声条件残差校准确实能降低剩余误差”的结论。
+
+此外，为检验 adapter 是否适合少量目标场景样本下的快速校准，本文在 New York 场景上固定 `seed = 42`，分别使用默认训练集的 `5%`、`10%`、`20%` 和 `100%` 样本训练 adapter：
+
+| Train Fraction | Train Samples | Cross-attn Test NMSE | Adapter Test NMSE | Delta vs. Cross-attn |
+|---:|---:|---:|---:|---:|
+| 5% | 200 | 1.018754 | **1.003133** | **-0.015620** |
+| 10% | 400 | 1.018754 | **0.999868** | **-0.018886** |
+| 20% | 800 | 1.018754 | **1.001802** | **-0.016952** |
+| 100% | 4000 | 1.018754 | **0.999144** | **-0.019610** |
+
+few-shot 结果表明，即使只使用 `5%` 目标场景训练样本，adapter 也能获得接近完整训练的主要收益；`10%` 样本已经接近 full-data adapter。需要注意，该实验是目标场景少样本 adapter 校准，而不是跨场景 zero-shot 泛化；同时当前 few-shot 仅覆盖 New York 单 seed，因此应作为数据效率证据，而不是最终泛化结论。
+
+## 11. Pilot-Limited OFDM-LS 输入验证
+
+为验证方法能够接入更接近通信链路的初始估计，本文进一步构建 pilot-limited OFDM-LS 输入。具体而言，先将 DeepMIMO delay-domain channel 零填充并通过 FFT 映射到 `1024` 个子载波，在均匀间隔的 pilot 位置加入 `SNR = -10 dB` 的复高斯噪声，再对 noisy pilot 的幅度和展开相位分别做线性插值，最后通过 IFFT 变回原始 tap 维度。本文进一步设置 `pilot_spacing = 4, 8, 16`，对应 pilot fraction 分别为 `0.25098`、`0.12598` 和 `0.06348`。
+
+需要说明的是，当前 `o1_60` 前 `5000` 用户的信道功率非常小，manifest 中 selected power mean 约为 `1.50e-15`。因此，如果在 raw complex channel 上直接使用 `+1e-12` 分母平滑项，OFDM-LS 输入 NMSE 会被明显压小。为与训练脚本保持一致，本文报告 scale-normalized token NMSE 口径。
+
+建议图：
+
+```text
+deepmimo_multibs/paper_figures/fig9_ofdm_pilot_spacing_ablation.png
+```
+
+在不同 pilot spacing 下重新训练 cross-attention baseline，并以其 checkpoint 作为 frozen base 训练 noise-conditioned adapter，结果如下：
+
+| Pilot Spacing | Num Pilots | Pilot Fraction | Raw OFDM-LS NMSE | Cross-attn Test NMSE | Adapter Test NMSE | Delta vs. Base | Relative Drop |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4 | 257 | 0.25098 | 0.054987 | 0.012720 | **0.012007** | **-0.000713** | **5.61%** |
+| 8 | 129 | 0.12598 | 0.105624 | 0.023008 | **0.022244** | **-0.000764** | **3.32%** |
+| 16 | 65 | 0.06348 | 0.205703 | 0.039937 | **0.038160** | **-0.001777** | **4.45%** |
+
+结果显示，随着 pilot spacing 增大、pilot 数量减少，raw OFDM-LS 输入 NMSE 从 `0.054987` 升至 `0.205703`，任务难度单调增加。cross-attention baseline 仍能显著细化初始 OFDM-LS 估计；在此基础上，零初始化 noise-conditioned adapter 在三种 pilot spacing 下均继续降低 Test NMSE。尤其在 `pilot_spacing = 16` 的较稀疏 pilot 设置下，adapter 的绝对增益达到 `-0.001777`，说明噪声条件残差校准在 pilot-limited 输入下仍具有稳定作用。
+
+为进一步确认 OFDM-LS 结果不是单次划分偶然，本文在 `pilot_spacing = 8` 下补充 `seed = 7, 21, 42` 三组重复实验。结果如下：
+
+| Pilot Spacing | Seeds | Cross-attn Test NMSE | Adapter Test NMSE | Delta vs. Base | Improved Seeds |
+|---:|---:|---:|---:|---:|---:|
+| 8 | 7 / 21 / 42 | 0.022870 ± 0.000128 | **0.020963 ± 0.001214** | **-0.000838 ± 0.000103** | 3 / 3 |
+
+三随机种子结果表明，在固定 pilot spacing 下，noise-conditioned adapter 对 OFDM-LS 输入同样稳定优于 frozen cross-attention baseline。该组实验将 AWGN controlled study 与 OFDM-LS 输入链路连接起来，证明本文方法并不依赖某一种初始估计生成方式。
+
+## 12. 效率与低时延分析
 
 5G/6G 信道估计模块不仅需要较高精度，也需要满足低时延推理要求。为评估所提方法作为 LS-like 初始估计之后的 neural refinement module 是否具备实际部署潜力，本文在 `o1_60`、`SNR = -10 dB`、`batch size = 256` 设置下，对主要独立模型进行推理效率测试。测试脚本为：
 
@@ -580,21 +635,21 @@ deepmimo_multibs/paper_figures/fig7_accuracy_latency_tradeoff.png
 
 该结果在 `city_7_sandiego_3p5`、`batch size = 256`、CUDA、warmup `50`、iters `200` 下测得。由于 adapter 包含 frozen cross-attention 主干，因此总参数量为 `0.605M`；但实际训练参数仅为 `0.113M`，说明该模块主要作为轻量残差校准器使用。端到端单样本延迟约 `9.75 us`，略高于独立 NC-CENet 的 `9.15 us`，但仍处于微秒级推理范围。后续若将 cross-attention 与 adapter 进行算子融合或蒸馏，有望进一步降低部署开销。
 
-## 12. 讨论
+## 13. 讨论
 
-### 12.1 本文核心贡献是什么？
+### 13.1 本文核心贡献是什么？
 
-本文的核心贡献不是证明 RSS 一定有效。相反，实验显示，在当前 DeepMIMO 设置下，直接 RSS fusion 并不稳定。
+本文的核心贡献不是重新证明 RSS 一定有效，而是在原作者 model-based initial estimation + neural refinement 框架下探索更稳定的条件化信道细化机制。
 
 更准确的贡献表述是：
 
-> 在 noisy LS-like 信道输入下，显式 noise-conditioned residual refinement 能够提升神经信道估计的鲁棒性；当其以零初始化轻量 adapter 形式叠加于 cross-attention estimator 后，还可以作为低风险的残差误差校准模块。
+> 在 noisy LS / OFDM-LS 信道输入下，noise-conditioned residual refinement 能够提升神经信道估计的鲁棒性；当其以零初始化轻量 adapter 形式叠加于 cross-attention estimator 后，还可以作为低风险的残差误差校准模块。
 
 因此，本文贡献并不是简单提出一个更大的网络，而是将信道估计误差分解为两个层次：cross-attention 主估计器负责捕获主要信道结构，noise-conditioned 模块负责建模剩余噪声相关误差。这种分解比端到端替换 baseline 更容易解释，也更符合通信系统中“传统估计器 + 神经后处理”的工程部署方式。
 
-### 12.2 为什么这是对原作者工作的延伸？
+### 13.2 为什么这是对原作者工作的延伸？
 
-原作者工作的核心思想是：将模型驱动初始估计与物理/环境信息结合，通过神经网络进行信道细化。本文保留这一方向，但实验发现，在当前 DeepMIMO 设置下，最可靠的条件信息不是 RSS，而是模型从输入中显式学习得到的 noise condition。
+原作者工作的核心思想是：将模型驱动初始估计与物理/环境信息结合，通过神经网络进行信道细化。本文保留这一方向，并在当前 DeepMIMO 分支中进一步比较外部 RSS 条件与输入相关 noise condition 的作用。
 
 可以概括为：
 
@@ -605,30 +660,51 @@ deepmimo_multibs/paper_figures/fig7_accuracy_latency_tradeoff.png
 
 因此，本文是在原作者框架上的结构化延伸，而不是简单替代。
 
-### 12.3 是否存在简单堆叠模块的问题？
+### 13.3 是否存在简单堆叠模块的问题？
 
-一个自然质疑是：如果在 cross-attention 后再接一个 adapter，是否只是通过增加参数量获得小幅提升。本文从三个方面降低这一风险。
+一个自然质疑是：如果在 cross-attention 后再接一个 adapter，是否只是通过增加参数量获得小幅提升。本文从三个方面降低这一风险，并通过 plain adapter 与无 noise loss adapter 对照实验进一步分析收益来源。
 
 第一，adapter 不是任意后接网络，而是以 noise map 为条件的残差误差模型。它的输入不仅包含 cross-attention 输出，还包含 `X_LS`、`X_ca - X_LS` 和显式估计的 `M_noise`，目标是修正与输入噪声状态相关的剩余误差。
 
 第二，adapter 采用零初始化 correction head，使初始模型严格退化为原 cross-attention baseline。因此，训练过程不是从随机后处理器开始，而是在不破坏 baseline 的前提下寻找小幅增益。这与 ResNet、LoRA 和许多 calibration / adapter 方法中的 identity-preserving initialization 思想一致。
 
-第三，cross-attention 主干在 adapter 实验中被冻结，adapter 只学习低维残差修正。若性能提升来自简单增大主模型容量，则冻结主干的小型 adapter 不应稳定带来增益。San Diego 和 New York 的结果表明，噪声条件残差校准确实能降低 cross-attention 的剩余误差。
+第三，cross-attention 主干在 adapter 实验中被冻结，adapter 只学习低维残差修正。若性能提升主要来自大规模重训主模型，则冻结主干的小型 adapter 不应在多个 seed 中稳定带来增益。San Diego 和 New York 的结果表明，这类 identity-preserving residual adapter 能够稳定降低 cross-attention 的剩余误差；其中 noise-conditioned 版本在 New York 三随机种子均值上取得最低 Test NMSE。
 
-### 12.4 局限性
+### 13.4 Adapter 结构消融
+
+为进一步分析 adapter 的收益来源，本文在 New York 场景上补充三类结构消融：plain residual adapter、无 noise loss 的 noise-conditioned adapter，以及主文采用的带 noise loss 的 noise-conditioned adapter。三者均冻结 cross-attention 主干，并使用相同的零初始化 correction head、adapter scale 和 early stopping 策略。
+
+| Variant | Frozen Base | Noise Map Condition | Noise Loss | 目的 |
+|---|---|---|---|---|
+| Cross-attention base | - | - | - | 强 baseline |
+| Plain residual adapter | 是 | 否 | 否 | 参数量对照 |
+| Noise-conditioned adapter, no noise loss | 是 | 是 | 否 | 验证条件结构本身 |
+| Noise-conditioned adapter | 是 | 是 | 是 | 当前主 adapter |
+
+New York 三随机种子结果如下：
+
+| Variant | Seeds | Test NMSE | Delta vs. Cross-attn | Improved Seeds |
+|---|---:|---:|---:|---:|
+| Plain residual adapter | 7 / 21 / 42 | 0.994698 ± 0.004435 | -0.017203 ± 0.003875 | 3 / 3 |
+| Noise-conditioned adapter, no noise loss | 7 / 21 / 42 | 0.994711 ± 0.004431 | -0.017190 ± 0.003496 | 3 / 3 |
+| Noise-conditioned adapter | 7 / 21 / 42 | **0.994607 ± 0.004225** | **-0.017293 ± 0.003571** | 3 / 3 |
+
+该消融表明，零初始化 residual adapter 本身已经是一个稳定有效的 post-refinement 机制；在此基础上，引入 noise-conditioned feature 与轻量 noise supervision 后取得了三组设置中的最低平均 Test NMSE。换言之，本文 adapter 的主要价值可以表述为：在不重训 cross-attention 主干的前提下，通过受控残差校准稳定降低剩余误差；noise-conditioned 设计进一步提供了与输入扰动状态相关的条件化修正信号。
+
+### 13.5 局限性
 
 当前工作仍有以下局限：
 
-- LS-like 输入由 clean channel 叠加 AWGN 得到，还不是完整 OFDM-LS 链路；
+- OFDM-LS 验证目前覆盖 `o1_60` 单随机种子，后续可扩展更多场景和多随机种子；
 - 主场景 channel 维度较小，仅为 `[1, 8, 1]`；
-- RSS fusion 可能需要更丰富的空间维度、更复杂 channel 表示或更强融合机制；
-- adapter 结果仍属于场景内训练和测试，还不是跨场景零样本泛化；
-- 当前跨场景结论主要基于单随机种子，最终论文级结果最好增加多随机种子统计；
-- 后续应扩展到更多天线、更多子载波或完整 pilot-limited OFDM 设置。
+- RSS fusion 在更丰富空间维度、更复杂 channel 表示或更强融合机制下仍值得进一步研究；
+- adapter 结果仍属于目标场景内训练和测试，few-shot 实验也属于目标场景少样本校准，还不是跨场景零样本泛化；
+- San Diego 和 New York 的 adapter 已补充三随机种子统计，但 few-shot 目前主要基于 New York 单随机种子，后续应扩展到更多场景和更多 seed；
+- 后续应扩展到更多天线、更多子载波或完整 pilot-limited OFDM 设置，并在更多场景上继续验证 adapter 结构消融趋势。
 
-## 13. 结论
+## 14. 结论
 
-本文基于原作者 physics-informed neural channel estimation 代码框架，提出一种噪声条件残差细化方法。实验表明，直接 RSS fusion 在当前 DeepMIMO 设置下并不稳定，而显式 noise map estimation 与 noise-conditioned denoising 能够更稳定地提升 noisy LS-like channel refinement 性能。独立训练的 NC-CENet 在 `o1_60` 三档 SNR 下均优于或不弱于 cross-attention baseline，尤其在 `-10 dB` 下取得明显提升。进一步地，零初始化 noise-conditioned adapter 在 San Diego 和 New York 场景中均超过对应 frozen cross-attention baseline，说明该方法可以作为已有强 estimator 后的轻量残差校准模块。总体而言，本文的主要结论是：噪声条件化并非简单替代 RSS prior，而是为低 SNR 信道估计提供了一种可解释、可控且具备低时延潜力的 residual refinement 机制。
+本文基于原作者 physics-informed neural channel estimation 代码框架，提出一种噪声条件残差细化方法。实验表明，直接 RSS fusion 在当前 DeepMIMO 设置下并不稳定，而noise-conditioned feature / map estimation 与 noise-conditioned denoising 能够更稳定地提升 noisy LS / OFDM-LS channel refinement 性能。独立训练的 NC-CENet 在 `o1_60` 三档 SNR 下均优于或不弱于 cross-attention baseline，尤其在 `-10 dB` 下取得明显提升。进一步地，零初始化 noise-conditioned adapter 在 San Diego 和 New York 场景的三随机种子实验中均取得相对对应 frozen cross-attention baseline 的正向增益；New York 结构消融显示，主 adapter 在 plain residual adapter 和无 noise loss adapter 对照中取得最低平均 Test NMSE。在 New York 少样本目标场景校准中，adapter 用 `5%` 训练样本即可取得明显增益；在补充的 `o1_60` pilot-limited OFDM-LS 输入下，adapter 也将 Test NMSE 从 `0.012720` 降至 `0.012007`。总体而言，本文的主要结论是：噪声条件化并非简单替代 RSS prior，而是为低 SNR 信道估计提供了一种可解释、可控且具备低时延潜力的 residual refinement 机制。
 
 ## 附录 A. 主要复现实验命令
 
@@ -667,3 +743,74 @@ python deepmimo_multibs/train_nc_adapter.py --data-dir deepmimo_multibs/processe
 ```powershell
 python deepmimo_multibs/benchmark_inference.py --model nc_adapter --data-dir deepmimo_multibs/processed/city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000 --checkpoint deepmimo_multibs/processed/city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/nc_adapter_ls_only_nw0001_s01_ep80_es15/best_model.pth --base-checkpoint deepmimo_multibs/processed/city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/cross_attention_ls_only_ep100/best_model.pth --mode ls_only --device cuda --batch-size 256 --warmup 50 --iters 200 --out deepmimo_multibs/processed/city_7_sandiego_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/nc_adapter_ls_only_nw0001_s01_ep80_es15/benchmark.json
 ```
+
+## 附录 B. Adapter 结构消融命令
+
+本文在 `city_0_newyork_3p5` 上使用 `seed = 7, 21, 42` 进行 adapter 结构消融。下面给出 `seed = 42` 的示例命令，其余 seed 只需替换 `--seed` 与 `--out-dir` 后缀。
+
+Plain residual adapter，用于排除“只是多加一个残差后处理器”的解释：
+
+```powershell
+python deepmimo_multibs/train_nc_adapter.py --adapter-variant plain --data-dir deepmimo_multibs/processed/city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000 --base-checkpoint deepmimo_multibs/processed/city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/cross_attention_ls_only_ep100/best_model.pth --mode ls_only --epochs 80 --batch-size 256 --device cuda --noise-weight 0 --adapter-scale 0.1 --patience 15 --seed 42 --out-dir deepmimo_multibs/processed/city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/plain_adapter_ls_only_s01_ep80_es15_seed42
+```
+
+Noise-conditioned adapter without noise loss，用于区分“噪声条件输入结构”与“噪声监督损失”的作用：
+
+```powershell
+python deepmimo_multibs/train_nc_adapter.py --adapter-variant noise_conditioned --data-dir deepmimo_multibs/processed/city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000 --base-checkpoint deepmimo_multibs/processed/city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/cross_attention_ls_only_ep100/best_model.pth --mode ls_only --epochs 80 --batch-size 256 --device cuda --noise-weight 0 --adapter-scale 0.1 --patience 15 --seed 42 --out-dir deepmimo_multibs/processed/city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/nc_adapter_no_noise_loss_ls_only_s01_ep80_es15_seed42
+```
+
+Finetune-base adapter 可作为补充上界分析，不作为主方法：
+
+```powershell
+python deepmimo_multibs/train_nc_adapter.py --adapter-variant noise_conditioned --finetune-base --data-dir deepmimo_multibs/processed/city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000 --base-checkpoint deepmimo_multibs/processed/city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/cross_attention_ls_only_ep100/best_model.pth --mode ls_only --epochs 80 --batch-size 256 --device cuda --noise-weight 0.001 --adapter-scale 0.1 --patience 15 --seed 42 --out-dir deepmimo_multibs/processed/city_0_newyork_3p5_rx0_tx1_2_3_channel_snr-10_top5000/runs/nc_adapter_finetune_base_ls_only_nw0001_s01_ep80_es15_seed42
+```
+
+主文结构消融表默认采用 frozen-base 设置；finetune-base 结果可放入附录或实验记录中，用于说明本文主方法关注的是低风险后置校准，而不是重训整个 cross-attention 主干。
+
+## 附录 C. OFDM-LS 多随机种子复现命令
+
+本文在 OFDM-LS `pilot_spacing = 8` 设置下补充 `seed = 7, 21, 42` 三随机种子验证。下面给出 `seed = 7` 和 `seed = 21` 的复现命令；`seed = 42` 对应第 11 节 pilot-spacing 主实验中的 `ps=8` 设置。
+
+构建 `seed = 7` 的 OFDM-LS `pilot_spacing = 8` 数据：
+
+```powershell
+python deepmimo_multibs/build_channel_dataset.py --scenario o1_60 --target-pair-index 0 --rss-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed7 --num-users 5000 --snr -10 --ls-input ofdm --pilot-spacing 8 --n-subcarriers 1024 --seed 7
+```
+
+训练 `seed = 7` 的 OFDM-LS cross-attention baseline：
+
+```powershell
+python deepmimo_multibs/train_cross_attention_baseline.py --data-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed7 --ls-file ls_target_snr-10_ofdm_ps8_nsc1024.npy --mode ls_only --epochs 100 --batch-size 256 --device cuda --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed7/runs/cross_attention_ls_only_ep100
+```
+
+训练 `seed = 7` 的 OFDM-LS noise-conditioned adapter：
+
+```powershell
+python deepmimo_multibs/train_nc_adapter.py --data-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed7 --ls-file ls_target_snr-10_ofdm_ps8_nsc1024.npy --base-checkpoint deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed7/runs/cross_attention_ls_only_ep100/best_model.pth --mode ls_only --epochs 80 --batch-size 256 --device cuda --noise-weight 0.001 --adapter-scale 0.1 --patience 15 --seed 7 --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed7/runs/nc_adapter_ls_only_nw0001_s01_ep80_es15
+```
+
+构建 `seed = 21` 的 OFDM-LS `pilot_spacing = 8` 数据：
+
+```powershell
+python deepmimo_multibs/build_channel_dataset.py --scenario o1_60 --target-pair-index 0 --rss-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed21 --num-users 5000 --snr -10 --ls-input ofdm --pilot-spacing 8 --n-subcarriers 1024 --seed 21
+```
+
+训练 `seed = 21` 的 OFDM-LS cross-attention baseline：
+
+```powershell
+python deepmimo_multibs/train_cross_attention_baseline.py --data-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed21 --ls-file ls_target_snr-10_ofdm_ps8_nsc1024.npy --mode ls_only --epochs 100 --batch-size 256 --device cuda --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed21/runs/cross_attention_ls_only_ep100
+```
+
+训练 `seed = 21` 的 OFDM-LS noise-conditioned adapter：
+
+```powershell
+python deepmimo_multibs/train_nc_adapter.py --data-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed21 --ls-file ls_target_snr-10_ofdm_ps8_nsc1024.npy --base-checkpoint deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed21/runs/cross_attention_ls_only_ep100/best_model.pth --mode ls_only --epochs 80 --batch-size 256 --device cuda --noise-weight 0.001 --adapter-scale 0.1 --patience 15 --seed 21 --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed21/runs/nc_adapter_ls_only_nw0001_s01_ep80_es15
+```
+
+如果时间更充裕，可继续补 `pilot_spacing = 16` 的 `seed = 7, 21`。当前 `ps=16` 是稀疏 pilot 下绝对增益最大的设置，因此它适合进一步强化“pilot 越稀疏时 adapter 仍有效”的趋势分析。
+
+
+
+
+

@@ -11,10 +11,13 @@ OUT_DIR = Path("deepmimo_multibs/paper_figures")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def savefig(name):
+def savefig(name, rect=None):
     path = OUT_DIR / name
-    plt.tight_layout()
-    plt.savefig(path, dpi=240)
+    if rect is None:
+        plt.tight_layout()
+    else:
+        plt.tight_layout(rect=rect)
+    plt.savefig(path, dpi=240, bbox_inches="tight", pad_inches=0.08)
     plt.close()
     print(path)
 
@@ -150,6 +153,100 @@ def plot_cross_scenario():
     savefig("fig6_cross_scenario_asu.png")
 
 
+def plot_adapter_multiseed_fewshot():
+    scenarios = ["San Diego", "New York"]
+    base_mean = np.array([0.986318, 1.011900])
+    base_std = np.array([0.005156, 0.006112])
+    adapter_mean = np.array([0.983182, 0.994607])
+    adapter_std = np.array([0.005239, 0.004225])
+
+    fractions = ["5%", "10%", "20%", "100%"]
+    samples = [200, 400, 800, 4000]
+    fewshot_nmse = [1.003133, 0.999868, 1.001802, 0.999144]
+    fewshot_base = 1.018754
+
+    fig, axes = plt.subplots(1, 2, figsize=(10.6, 4.5))
+
+    x = np.arange(len(scenarios))
+    width = 0.34
+    axes[0].bar(
+        x - width / 2,
+        base_mean,
+        width,
+        yerr=base_std,
+        capsize=4,
+        label="Cross-attn",
+        color="#9ecae9",
+    )
+    axes[0].bar(
+        x + width / 2,
+        adapter_mean,
+        width,
+        yerr=adapter_std,
+        capsize=4,
+        label="Adapter",
+        color="#f58518",
+    )
+    axes[0].set_xticks(x, scenarios)
+    axes[0].set_ylabel("Test NMSE at -10 dB")
+    axes[0].set_title("Adapter multi-seed stability")
+    axes[0].grid(axis="y", alpha=0.25)
+    axes[0].set_ylim(0.96, 1.03)
+    axes[0].legend(frameon=False)
+    for idx, value in enumerate(base_mean):
+        axes[0].text(idx - width / 2, value + 0.008, f"{value:.3f}", ha="center", fontsize=8)
+    for idx, value in enumerate(adapter_mean):
+        axes[0].text(idx + width / 2, value + 0.008, f"{value:.3f}", ha="center", fontsize=8)
+
+    axes[1].plot(samples, fewshot_nmse, marker="o", linewidth=2.2, color="#f58518", label="Adapter")
+    axes[1].axhline(fewshot_base, linestyle="--", linewidth=1.8, color="#4c78a8", label="Cross-attn baseline")
+    axes[1].set_xscale("log")
+    axes[1].set_xticks(samples, fractions)
+    axes[1].set_xlabel("New York train fraction")
+    axes[1].set_ylabel("Test NMSE at -10 dB")
+    axes[1].set_title("Few-shot target-scene calibration")
+    axes[1].grid(True, alpha=0.25)
+    axes[1].set_ylim(0.992, 1.022)
+    axes[1].legend(frameon=False)
+    for sample, label, value in zip(samples, fractions, fewshot_nmse):
+        axes[1].text(sample, value - 0.0022, f"{label}\n{value:.3f}", ha="center", va="top", fontsize=8)
+
+    fig.suptitle("Noise-Conditioned Adapter: Stability and Data Efficiency", y=0.98, fontsize=15)
+    savefig("fig8_adapter_multiseed_fewshot.png", rect=[0, 0, 1, 0.92])
+
+def plot_ofdm_pilot_spacing_ablation():
+    pilot_spacing = np.array([4, 8, 16])
+    raw_nmse = np.array([0.054987, 0.105624, 0.205703])
+    cross_attn = np.array([0.012720, 0.023008, 0.039937])
+    adapter = np.array([0.012007, 0.022244, 0.038160])
+    relative_drop = (cross_attn - adapter) / cross_attn * 100.0
+
+    fig, axes = plt.subplots(1, 2, figsize=(10.4, 4.5))
+
+    axes[0].plot(pilot_spacing, raw_nmse, marker="o", linewidth=2.2, label="Raw OFDM-LS", color="#4c78a8")
+    axes[0].plot(pilot_spacing, cross_attn, marker="o", linewidth=2.2, label="Cross-attn", color="#9ecae9")
+    axes[0].plot(pilot_spacing, adapter, marker="o", linewidth=2.2, label="Adapter", color="#f58518")
+    axes[0].set_xlabel("Pilot spacing")
+    axes[0].set_ylabel("Test NMSE at -10 dB")
+    axes[0].set_title("OFDM-LS Pilot Sparsity")
+    axes[0].set_xticks(pilot_spacing)
+    axes[0].grid(True, alpha=0.25)
+    axes[0].legend(frameon=False)
+    for x, y in zip(pilot_spacing, adapter):
+        axes[0].text(x, y + 0.006, f"{y:.3f}", ha="center", fontsize=8)
+
+    axes[1].bar([str(x) for x in pilot_spacing], relative_drop, color="#f58518")
+    axes[1].set_xlabel("Pilot spacing")
+    axes[1].set_ylabel("Adapter relative drop vs. base (%)")
+    axes[1].set_title("Residual Calibration Gain")
+    axes[1].grid(axis="y", alpha=0.25)
+    axes[1].set_ylim(0.0, 6.5)
+    for idx, value in enumerate(relative_drop):
+        axes[1].text(idx, value + 0.18, f"{value:.2f}%", ha="center", fontsize=9)
+
+    fig.suptitle("Pilot-Limited OFDM-LS Ablation", y=0.98, fontsize=15)
+    savefig("fig9_ofdm_pilot_spacing_ablation.png", rect=[0, 0, 1, 0.92])
+
 def plot_efficiency_latency():
     models = ["MLP", "Cross-attn", "Noise-aware", "NC-CENet"]
     test_nmse = [1.070395, 0.968148, 0.981476, 0.871116]
@@ -185,8 +282,8 @@ def plot_efficiency_latency():
             fontsize=8,
         )
 
-    fig.suptitle("Accuracy and Low-Latency Inference, batch=256", y=1.02)
-    savefig("fig7_accuracy_latency_tradeoff.png")
+    fig.suptitle("Accuracy and Low-Latency Inference, batch=256", y=0.98, fontsize=15)
+    savefig("fig7_accuracy_latency_tradeoff.png", rect=[0, 0, 1, 0.92])
 
 
 def main():
@@ -196,8 +293,12 @@ def main():
     plot_rss_control()
     plot_best_epoch()
     plot_cross_scenario()
+    plot_adapter_multiseed_fewshot()
+    plot_ofdm_pilot_spacing_ablation()
     plot_efficiency_latency()
 
 
 if __name__ == "__main__":
     main()
+
+
