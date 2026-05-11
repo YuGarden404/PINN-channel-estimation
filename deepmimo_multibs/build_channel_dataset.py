@@ -4,6 +4,11 @@ from pathlib import Path
 
 import numpy as np
 
+try:
+    from deepmimo_multibs.ls_ofdm import LSOFDMChannelEstimator
+except ModuleNotFoundError:
+    from ls_ofdm import LSOFDMChannelEstimator
+
 
 def add_complex_awgn(channel, snr_db, seed):
     rng = np.random.default_rng(seed)
@@ -49,9 +54,49 @@ def select_valid_indices(channel, num_users, min_power_quantile, sort_by_power):
     return indices, power, threshold
 
 
+def build_ls_input(channel, args):
+    if args.ls_input == "awgn":
+        ls_channel = add_complex_awgn(channel, snr_db=args.snr, seed=args.seed)
+        return (
+            ls_channel,
+            f"ls_target_snr{args.snr:g}.npy",
+            "LS-like input is simulated by adding complex AWGN to target channel.",
+            None,
+        )
+
+    if channel.ndim != 4:
+        raise RuntimeError(
+            f"OFDM-LS input expects channel shape (n_user, n_tap, n_rx, n_tx), got {channel.shape}."
+        )
+    estimator = LSOFDMChannelEstimator(
+        n_tap=channel.shape[1],
+        n_rx=channel.shape[2],
+        n_tx=channel.shape[3],
+        n_subcarriers=args.n_subcarriers,
+        pilot_spacing=args.pilot_spacing,
+        snr_db=args.snr,
+        seed=args.seed,
+    )
+    ls_channel = estimator.estimate_batch(channel)
+    metadata = {
+        "pilot_fraction": estimator.pilot_fraction,
+        "num_pilots": int(len(estimator.pilot_positions)),
+    }
+    return (
+        ls_channel,
+        f"ls_target_snr{args.snr:g}_ofdm_ps{args.pilot_spacing}_nsc{args.n_subcarriers}.npy",
+        (
+            "Pilot-limited OFDM-LS input uses uniformly spaced pilots, noisy pilot "
+            "observations, linear interpolation over magnitude/unwrapped phase, and "
+            "IFFT back to delay taps."
+        ),
+        metadata,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Extract target-BS DeepMIMO channels and build noisy LS-like inputs."
+        description="Extract target-BS DeepMIMO channels and build AWGN or pilot-limited OFDM-LS inputs."
     )
     parser.add_argument("--scenario", required=True)
     parser.add_argument("--target-pair-index", type=int, required=True)
@@ -71,6 +116,14 @@ def main():
         help="Optionally sort samples by average channel power before taking --num-users.",
     )
     parser.add_argument("--snr", type=float, default=0.0)
+    parser.add_argument(
+        "--ls-input",
+        choices=["awgn", "ofdm"],
+        default="awgn",
+        help="Input estimator used to build ls_target*.npy.",
+    )
+    parser.add_argument("--pilot-spacing", type=int, default=4)
+    parser.add_argument("--n-subcarriers", type=int, default=1024)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -92,10 +145,10 @@ def main():
         sort_by_power=args.sort_by_power,
     )
     channel = full_channel[selected_indices]
-    ls_channel = add_complex_awgn(channel, snr_db=args.snr, seed=args.seed)
+    ls_channel, ls_file, ls_notes, ls_metadata = build_ls_input(channel, args)
 
     np.save(out_dir / "channel_target.npy", channel)
-    np.save(out_dir / f"ls_target_snr{args.snr:g}.npy", ls_channel)
+    np.save(out_dir / ls_file, ls_channel)
 
     copied = {}
     for name in ["rss_multibs_normalized.npy", "rss_multibs_db.npy", "user_positions.npy"]:
@@ -117,16 +170,19 @@ def main():
         "selected_power_mean": float(np.mean(channel_power[selected_indices])),
         "selected_power_min": float(np.min(channel_power[selected_indices])),
         "selected_power_max": float(np.max(channel_power[selected_indices])),
-        "ls_file": f"ls_target_snr{args.snr:g}.npy",
+        "ls_file": ls_file,
+        "ls_input": args.ls_input,
         "snr": args.snr,
+        "pilot_spacing": args.pilot_spacing,
+        "n_subcarriers": args.n_subcarriers,
         "seed": args.seed,
         "rss_dir": str(rss_dir),
         "copied_arrays": copied,
-        "notes": (
-            "LS-like input is simulated by adding complex AWGN to target channel. "
-            "This is a first DeepMIMO baseline, not the original LS-OFDM estimator."
-        ),
+        "notes": ls_notes,
     }
+    if ls_metadata is not None:
+        manifest.update(ls_metadata)
+
     with open(out_dir / "manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
 

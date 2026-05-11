@@ -45,11 +45,15 @@ class NoiseConditionedAdapter(nn.Module):
         dropout=0.05,
         adapter_scale=0.1,
         freeze_base=True,
+        adapter_variant="noise_conditioned",
     ):
         super().__init__()
         self.base_model = base_model
         self.freeze_base = freeze_base
         self.adapter_scale = adapter_scale
+        self.adapter_variant = adapter_variant
+        if self.adapter_variant not in {"noise_conditioned", "plain"}:
+            raise ValueError(f"Unknown adapter_variant: {self.adapter_variant}")
 
         self.noise_in = nn.Linear(2, hidden_dim)
         self.noise_pos = nn.Parameter(torch.zeros(1, num_channel_tokens, hidden_dim))
@@ -120,9 +124,13 @@ class NoiseConditionedAdapter(nn.Module):
         noise_feat = self.noise_in(ls_tokens) + self.noise_pos
         noise_feat = self.noise_encoder(noise_feat)
         noise_map = self.noise_head(noise_feat)
+        if self.adapter_variant == "plain":
+            adapter_noise = torch.zeros_like(noise_map)
+        else:
+            adapter_noise = noise_map
 
         base_residual = base_pred - ls_tokens
-        adapter_input = torch.cat([ls_tokens, base_pred, base_residual, noise_map], dim=-1)
+        adapter_input = torch.cat([ls_tokens, base_pred, base_residual, adapter_noise], dim=-1)
         adapter_feat = self.adapter_in(adapter_input) + self.adapter_pos
         adapter_feat = self.adapter_encoder(adapter_feat)
         correction = self.correction_gate(adapter_feat) * self.correction_head(adapter_feat)
@@ -156,6 +164,19 @@ def make_split(n_samples, seed=42, train_ratio=0.8, val_ratio=0.1):
         "val": indices[n_train : n_train + n_val],
         "test": indices[n_train + n_val :],
     }
+
+
+def subsample_train_indices(indices, seed, train_fraction, max_train_samples):
+    if not (0.0 < train_fraction <= 1.0):
+        raise ValueError("--train-fraction must be in (0, 1].")
+    rng = np.random.default_rng(seed + 1009)
+    selected = np.array(indices, copy=True)
+    if train_fraction < 1.0:
+        n_keep = max(1, int(round(len(selected) * train_fraction)))
+        selected = rng.choice(selected, size=n_keep, replace=False)
+    if max_train_samples is not None and max_train_samples > 0 and len(selected) > max_train_samples:
+        selected = rng.choice(selected, size=max_train_samples, replace=False)
+    return np.sort(selected)
 
 
 def build_rss(rss_multi, mode, seed):
@@ -260,10 +281,28 @@ def main():
     parser.add_argument("--num-heads", type=int, default=4)
     parser.add_argument("--depth", type=int, default=1)
     parser.add_argument("--dropout", type=float, default=0.05)
+    parser.add_argument(
+        "--adapter-variant",
+        choices=["noise_conditioned", "plain"],
+        default="noise_conditioned",
+        help="Use learned noise map as adapter condition, or a same-size plain residual adapter.",
+    )
     parser.add_argument("--adapter-scale", type=float, default=0.1)
     parser.add_argument("--noise-weight", type=float, default=0.001)
     parser.add_argument("--correction-weight", type=float, default=0.001)
     parser.add_argument("--finetune-base", action="store_true")
+    parser.add_argument(
+        "--train-fraction",
+        type=float,
+        default=1.0,
+        help="Fraction of the default training split used to train the adapter.",
+    )
+    parser.add_argument(
+        "--max-train-samples",
+        type=int,
+        default=0,
+        help="Optional cap on adapter training samples. 0 disables the cap.",
+    )
     parser.add_argument("--patience", type=int, default=15)
     parser.add_argument("--min-delta", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=42)
@@ -295,7 +334,13 @@ def main():
     rss = build_rss(rss_multi, args.mode, args.seed)
 
     splits = make_split(n_samples, seed=args.seed)
-    train_ds = ChannelRSSDataset(ls_tokens, target_tokens, rss, splits["train"])
+    train_indices = subsample_train_indices(
+        splits["train"],
+        seed=args.seed,
+        train_fraction=args.train_fraction,
+        max_train_samples=args.max_train_samples,
+    )
+    train_ds = ChannelRSSDataset(ls_tokens, target_tokens, rss, train_indices)
     val_ds = ChannelRSSDataset(ls_tokens, target_tokens, rss, splits["val"])
     test_ds = ChannelRSSDataset(ls_tokens, target_tokens, rss, splits["test"])
 
@@ -322,6 +367,7 @@ def main():
         dropout=args.dropout,
         adapter_scale=args.adapter_scale,
         freeze_base=not args.finetune_base,
+        adapter_variant=args.adapter_variant,
     ).to(args.device)
     optimizer = torch.optim.AdamW(
         [param for param in model.parameters() if param.requires_grad],
@@ -329,7 +375,11 @@ def main():
         weight_decay=1e-4,
     )
 
-    suffix = f"nc_adapter_{args.mode}_nw{str(args.noise_weight).replace('.', 'p')}_s{str(args.adapter_scale).replace('.', 'p')}"
+    suffix = (
+        f"nc_adapter_{args.adapter_variant}_{args.mode}_"
+        f"nw{str(args.noise_weight).replace('.', 'p')}_"
+        f"s{str(args.adapter_scale).replace('.', 'p')}"
+    )
     out_dir = Path(args.out_dir) if args.out_dir else data_dir / "runs" / suffix
     out_dir.mkdir(parents=True, exist_ok=True)
     best_path = out_dir / "best_model.pth"
@@ -348,10 +398,15 @@ def main():
                 "data_dir": str(data_dir),
                 "base_checkpoint": args.base_checkpoint,
                 "n_samples": n_samples,
+                "train_samples": int(len(train_indices)),
+                "default_train_samples": int(len(splits["train"])),
+                "train_fraction": args.train_fraction,
+                "max_train_samples": args.max_train_samples,
                 "channel_tokens": int(ls_tokens.shape[1]),
                 "rss_dim": int(rss.shape[1]),
                 "hidden_dim": args.hidden_dim,
                 "depth": args.depth,
+                "adapter_variant": args.adapter_variant,
                 "adapter_scale": args.adapter_scale,
                 "noise_weight": args.noise_weight,
                 "correction_weight": args.correction_weight,
@@ -427,6 +482,10 @@ def main():
         "mode": args.mode,
         "epochs_requested": args.epochs,
         "epochs_trained": len(history),
+        "train_samples": int(len(train_indices)),
+        "default_train_samples": int(len(splits["train"])),
+        "train_fraction": args.train_fraction,
+        "max_train_samples": args.max_train_samples,
         "early_stopped": early_stopped,
         "patience": args.patience,
         "min_delta": args.min_delta,
@@ -438,6 +497,7 @@ def main():
         "delta_vs_base_test_nmse": test_nmse - base_test_nmse,
         "test_db": float(10 * np.log10(test_nmse)),
         "base_test_db": float(10 * np.log10(base_test_nmse)),
+        "adapter_variant": args.adapter_variant,
         "adapter_scale": args.adapter_scale,
         "noise_weight": args.noise_weight,
         "correction_weight": args.correction_weight,

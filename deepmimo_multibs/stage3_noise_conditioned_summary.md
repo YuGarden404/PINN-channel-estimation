@@ -357,10 +357,30 @@ deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_snr-10/runs/cbdnet_ls_on
 
 - 在新的 `asu_campus_3p5` 场景上，经过有效覆盖用户筛选后，CBDNet-style 仍然略优于 cross-attention baseline。
 - 直接从零训练的 CBDNet-style 在 San Diego / New York 上不稳定，但以 frozen cross-attention checkpoint 为底座的 noise-conditioned adapter 能稳定超过对应 baseline。
-- San Diego 上，adapter 将 Test NMSE 从 `0.991768` 降至 `0.989168`；New York 上，从 `1.018754` 降至 `0.999144`。
+- 单 seed 结果中，San Diego 上 adapter 将 Test NMSE 从 `0.991768` 降至 `0.989168`；New York 上，从 `1.018754` 降至 `0.999144`。
+- 三随机种子统计显示，San Diego 上 cross-attn / adapter Test NMSE 分别为 `0.986318 ± 0.005156` / `0.983182 ± 0.005239`，平均 delta 为 `-0.003136 ± 0.002917`；New York 上分别为 `1.011900 ± 0.006112` / `0.994607 ± 0.004225`，平均 delta 为 `-0.017293 ± 0.003571`。两个场景均为 `3/3` seeds 改善。
+- New York few-shot adapter（seed 42）显示 `5% / 10% / 20% / 100%` 训练样本下 Test NMSE 分别为 `1.003133 / 0.999868 / 1.001802 / 0.999144`，均优于同一 baseline `1.018754`。其中 `5% = 200` 样本已经获得主要收益，`10% = 400` 样本接近 full-data adapter。
 - 该实验同时揭示了 DeepMIMO 场景评估中的一个重要注意点：当样本中存在大量 near-zero channel 时，普通 NMSE 会被极小分母严重放大。因此跨场景验证必须明确样本选择策略或采用额外稳健指标。
 - 论文中更有力的表述应转向：noise-conditioned refinement 作为 cross-attention estimator 之后的轻量 adapter，可以在多个 DeepMIMO 场景上提供额外增益。
 - 这比“从零训练一个更大的 CBDNet-style 网络”更符合原作者框架上的增量创新，也更适合强调低时延部署。
+
+## 5.10 Pilot-limited OFDM-LS 输入构建
+
+为推进“LS-like 输入仍由 clean channel 叠加 AWGN 得到”的局限，当前代码已新增 pilot-limited OFDM-LS 数据构建入口：
+
+- `deepmimo_multibs/ls_ofdm.py` 提供可复现的 `LSOFDMChannelEstimator`，支持 `n_subcarriers`、`pilot_spacing`、`snr_db` 和 `seed`。
+- `deepmimo_multibs/build_channel_dataset.py` 新增 `--ls-input awgn|ofdm`，其中 `ofdm` 模式会生成 `ls_target_snr*_ofdm_ps*_nsc*.npy`。
+- 训练脚本仍可复用现有 `--ls-file` 机制；由于新文件名保持 `ls_target_snr` 前缀，单一 LS 文件目录下也可被自动发现。
+- 已完成 `o1_60`、`SNR=-10 dB`、`n_subcarriers=1024` 下的 pilot spacing 消融。按训练脚本同口径的 scale-normalized token NMSE，raw OFDM-LS 输入在 `ps=4 / 8 / 16` 下分别为 `0.054987 / 0.105624 / 0.205703`，任务难度随 pilot 稀疏度单调增加。
+- OFDM-LS cross-attention baseline Test NMSE 在 `ps=4 / 8 / 16` 下分别为 `0.012720 / 0.023008 / 0.039937`。
+- OFDM-LS noise-conditioned adapter Test NMSE 在 `ps=4 / 8 / 16` 下分别为 `0.012007 / 0.022244 / 0.038160`，相对 frozen base 的 delta 分别为 `-0.000713 / -0.000764 / -0.001777`，相对下降约 `5.61% / 3.32% / 4.45%`。
+- 该结果说明 OFDM-LS 输入链路可跑通，且 adapter 在三种 pilot spacing 下均有增益；但还需要更多场景和多 seed 才能作为最终系统级结论。
+
+示例命令：
+
+```powershell
+python deepmimo_multibs/build_channel_dataset.py --scenario o1_60 --target-pair-index 0 --rss-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps4 --num-users 5000 --snr -10 --ls-input ofdm --pilot-spacing 4 --n-subcarriers 1024 --seed 42
+```
 
 ## 6. 模型效果好在哪里
 
@@ -510,3 +530,7 @@ python deepmimo_multibs/train_cbdnet_baseline.py `
 ## 11. 当前阶段一句话总结
 
 > 我们从“RSS 是否直接提升信道估计”推进到“如何在 noisy LS 输入下做更鲁棒的结构化 refinement”。当前结果显示，CBDNet-inspired noise-conditioned non-blind denoising 是比 naive RSS fusion 更稳定、更有解释性、也更适合低 SNR 信道估计的创新方向。
+
+
+
+
