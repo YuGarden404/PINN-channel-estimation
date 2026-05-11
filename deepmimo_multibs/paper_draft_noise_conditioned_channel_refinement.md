@@ -570,7 +570,13 @@ deepmimo_multibs/paper_figures/fig8_adapter_multiseed_fewshot.png
 | 20% | 800 | 1.018754 | **1.001802** | **-0.016952** |
 | 100% | 4000 | 1.018754 | **0.999144** | **-0.019610** |
 
-few-shot 结果表明，即使只使用 `5%` 目标场景训练样本，adapter 也能获得接近完整训练的主要收益；`10%` 样本已经接近 full-data adapter。需要注意，该实验是目标场景少样本 adapter 校准，而不是跨场景 zero-shot 泛化；同时当前 few-shot 仅覆盖 New York 单 seed，因此应作为数据效率证据，而不是最终泛化结论。
+few-shot 结果表明，即使只使用 `5%` 目标场景训练样本，adapter 也能获得接近完整训练的主要收益；`10%` 样本已经接近 full-data adapter。为进一步确认少样本校准不是单次随机划分偶然，本文对 `5%` 训练样本设置补充 `seed = 7, 21, 42` 三组重复实验：
+
+| Train Fraction | Train Samples | Seeds | Cross-attn Test NMSE | Adapter Test NMSE | Delta vs. Cross-attn | Improved Seeds |
+|---:|---:|---:|---:|---:|---:|---:|
+| 5% | 200 | 7 / 21 / 42 | 1.011900 ± 0.006112 | **0.998723 ± 0.003862** | **-0.013177 ± 0.002899** | 3 / 3 |
+
+这说明，在 New York 目标场景中，adapter 只使用 `200` 个训练样本也能在三组随机种子上稳定改善 frozen cross-attention baseline。需要注意，该实验是目标场景少样本 adapter 校准，而不是跨场景 zero-shot 泛化；其主要作用是说明所提后置校准模块具有较好的数据效率。
 
 ## 11. Pilot-Limited OFDM-LS 输入验证
 
@@ -600,7 +606,7 @@ deepmimo_multibs/paper_figures/fig9_ofdm_pilot_spacing_ablation.png
 |---:|---:|---:|---:|---:|---:|
 | 8 | 7 / 21 / 42 | 0.022870 ± 0.000128 | **0.020963 ± 0.001214** | **-0.000838 ± 0.000103** | 3 / 3 |
 
-三随机种子结果表明，在固定 pilot spacing 下，noise-conditioned adapter 对 OFDM-LS 输入同样稳定优于 frozen cross-attention baseline。该组实验将 AWGN controlled study 与 OFDM-LS 输入链路连接起来，证明本文方法并不依赖某一种初始估计生成方式。
+三随机种子结果表明，在固定 pilot spacing 下，noise-conditioned adapter 对 OFDM-LS 输入同样稳定优于 frozen cross-attention baseline。进一步地，本文在更稀疏的 `pilot_spacing = 16` 下补充 `seed = 7`，cross-attention Test NMSE 为 `0.041086`，adapter Test NMSE 为 `0.036159`，相对其 frozen base 的 Test NMSE 从 `0.037516` 降至 `0.036159`，delta 为 `-0.001357`。这说明在较稀疏 pilot 设置下，adapter 的增益仍然存在。该组实验将 AWGN controlled study 与 OFDM-LS 输入链路连接起来，证明本文方法并不依赖某一种初始估计生成方式。
 
 ## 12. 效率与低时延分析
 
@@ -699,7 +705,7 @@ New York 三随机种子结果如下：
 - 主场景 channel 维度较小，仅为 `[1, 8, 1]`；
 - RSS fusion 在更丰富空间维度、更复杂 channel 表示或更强融合机制下仍值得进一步研究；
 - adapter 结果仍属于目标场景内训练和测试，few-shot 实验也属于目标场景少样本校准，还不是跨场景零样本泛化；
-- San Diego 和 New York 的 adapter 已补充三随机种子统计，但 few-shot 目前主要基于 New York 单随机种子，后续应扩展到更多场景和更多 seed；
+- San Diego 和 New York 的 adapter 已补充三随机种子统计，New York `5%` few-shot 也已补充三随机种子；后续可将少样本校准扩展到更多场景和更多训练比例；
 - 后续应扩展到更多天线、更多子载波或完整 pilot-limited OFDM 设置，并在更多场景上继续验证 adapter 结构消融趋势。
 
 ## 14. 结论
@@ -808,7 +814,27 @@ python deepmimo_multibs/train_cross_attention_baseline.py --data-dir deepmimo_mu
 python deepmimo_multibs/train_nc_adapter.py --data-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed21 --ls-file ls_target_snr-10_ofdm_ps8_nsc1024.npy --base-checkpoint deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed21/runs/cross_attention_ls_only_ep100/best_model.pth --mode ls_only --epochs 80 --batch-size 256 --device cuda --noise-weight 0.001 --adapter-scale 0.1 --patience 15 --seed 21 --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps8_seed21/runs/nc_adapter_ls_only_nw0001_s01_ep80_es15
 ```
 
-如果时间更充裕，可继续补 `pilot_spacing = 16` 的 `seed = 7, 21`。当前 `ps=16` 是稀疏 pilot 下绝对增益最大的设置，因此它适合进一步强化“pilot 越稀疏时 adapter 仍有效”的趋势分析。
+补充的 `pilot_spacing = 16, seed = 7` 复现命令如下。
+
+构建 `seed = 7` 的 OFDM-LS `pilot_spacing = 16` 数据：
+
+```powershell
+python deepmimo_multibs/build_channel_dataset.py --scenario o1_60 --target-pair-index 0 --rss-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps16_seed7 --num-users 5000 --snr -10 --ls-input ofdm --pilot-spacing 16 --n-subcarriers 1024 --seed 7
+```
+
+训练 `seed = 7` 的 OFDM-LS `pilot_spacing = 16` cross-attention baseline：
+
+```powershell
+python deepmimo_multibs/train_cross_attention_baseline.py --data-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps16_seed7 --ls-file ls_target_snr-10_ofdm_ps16_nsc1024.npy --mode ls_only --epochs 100 --batch-size 256 --device cuda --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps16_seed7/runs/cross_attention_ls_only_ep100
+```
+
+训练 `seed = 7` 的 OFDM-LS `pilot_spacing = 16` noise-conditioned adapter：
+
+```powershell
+python deepmimo_multibs/train_nc_adapter.py --data-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps16_seed7 --ls-file ls_target_snr-10_ofdm_ps16_nsc1024.npy --base-checkpoint deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps16_seed7/runs/cross_attention_ls_only_ep100/best_model.pth --mode ls_only --epochs 80 --batch-size 256 --device cuda --noise-weight 0.001 --adapter-scale 0.1 --patience 15 --seed 7 --out-dir deepmimo_multibs/processed/o1_60_rx0_tx10_11_12_channel_ofdm_snr-10_ps16_seed7/runs/nc_adapter_ls_only_nw0001_s01_ep80_es15
+```
+
+若后续继续补 `pilot_spacing = 16, seed = 21`，可以进一步把稀疏 pilot 设置也升级为多随机种子结果。
 
 
 
